@@ -227,36 +227,52 @@ final class SystemVolume: ObservableObject {
     static let shared = SystemVolume()
 
     @Published var value: Float = AVAudioSession.sharedInstance().outputVolume
-    fileprivate weak var slider: UISlider?
+    /// The on-screen (hidden) MPVolumeView; its UISlider is looked up when needed, because iOS
+    /// builds the slider lazily after the view is in a window.
+    fileprivate weak var volumeView: MPVolumeView?
     private var observation: NSKeyValueObservation?
 
     private init() {
+        // outputVolume is only reported while the audio session is active.
+        try? AVAudioSession.sharedInstance().setActive(true)
+        value = AVAudioSession.sharedInstance().outputVolume
         observation = AVAudioSession.sharedInstance().observe(\.outputVolume, options: [.new]) { [weak self] _, change in
             guard let v = change.newValue else { return }
             DispatchQueue.main.async { self?.value = v }
         }
     }
 
+    private var slider: UISlider? {
+        guard let view = volumeView else { return nil }
+        if let direct = view.subviews.compactMap({ $0 as? UISlider }).first { return direct }
+        // Newer iOS versions nest it one level deeper.
+        return view.subviews.flatMap(\.subviews).compactMap { $0 as? UISlider }.first
+    }
+
     func set(_ v: Float) {
-        value = v
-        slider?.value = v
-        slider?.sendActions(for: .valueChanged)
+        let target = min(1, max(0, v))
+        value = target
+        guard let slider else { return }
+        slider.setValue(target, animated: false)
+        slider.sendActions(for: .valueChanged)
+        slider.sendActions(for: .touchUpInside)
     }
 }
 
 /// Hidden MPVolumeView: the supported way to change the system volume from a custom slider.
+/// It must stay in the window (tiny and nearly transparent, not `isHidden`) for iOS to accept it.
 struct HiddenVolumeView: UIViewRepresentable {
     func makeUIView(context: Context) -> MPVolumeView {
-        let v = MPVolumeView(frame: CGRect(x: -2000, y: -2000, width: 1, height: 1))
-        v.alpha = 0.0001
-        v.isUserInteractionEnabled = false
-        DispatchQueue.main.async {
-            SystemVolume.shared.slider = v.subviews.compactMap { $0 as? UISlider }.first
-        }
+        let v = MPVolumeView(frame: CGRect(x: 0, y: 0, width: 40, height: 20))
+        v.alpha = 0.011
+        v.showsRouteButton = false
+        SystemVolume.shared.volumeView = v
         return v
     }
 
-    func updateUIView(_ uiView: MPVolumeView, context: Context) {}
+    func updateUIView(_ uiView: MPVolumeView, context: Context) {
+        SystemVolume.shared.volumeView = uiView
+    }
 }
 
 struct VolumeSlider: View {
@@ -288,7 +304,12 @@ struct VolumeSlider: View {
             }
             .frame(height: 44)
         }
-        .background(HiddenVolumeView().frame(width: 1, height: 1))
+        .background(alignment: .leading) {
+            HiddenVolumeView()
+                .frame(width: 40, height: 20)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L10n.t("cd_volume"))
         .accessibilityValue("\(Int(volume.value * 100))%")
