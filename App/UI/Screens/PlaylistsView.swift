@@ -234,15 +234,21 @@ struct PlaylistDetailView: View {
             Button(L10n.t("save")) { if let pid = playlistId { library.renamePlaylist(pid, to: newName) } }
         }
         .confirmationDialog(L10n.t("delete_playlist_title"), isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button(L10n.t("delete"), role: .destructive) {
+            Button(L10n.t("delete_playlist_only"), role: .destructive) {
                 if let pid = playlistId {
                     dismiss()
-                    library.deletePlaylist(pid)
+                    library.deletePlaylist(pid, withSongs: false)
+                }
+            }
+            Button(L10n.t("delete_playlist_with_songs"), role: .destructive) {
+                if let pid = playlistId {
+                    dismiss()
+                    library.deletePlaylist(pid, withSongs: true)
                 }
             }
             Button(L10n.t("cancel"), role: .cancel) {}
         } message: {
-            Text(L10n.t("delete_playlist_body"))
+            Text(L10n.t("delete_playlist_choice_body"))
         }
     }
 

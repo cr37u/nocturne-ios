@@ -44,6 +44,7 @@ struct NocturneApp: App {
         IntentBridge.handler = { command in PlayerEngine.shared.handle(command) }
         SystemSurfaces.shared.start()
         DownloadManager.shared.start()
+        FolderWatcher.shared.start()
         UIScrollView.appearance().keyboardDismissMode = .interactive
     }
 
@@ -63,6 +64,7 @@ struct NocturneApp: App {
             switch phase {
             case .active:
                 lang.refreshSystemLanguage()
+                FolderWatcher.shared.check()
                 consumePendingLinks()
                 detectClipboard()
                 DownloadManager.shared.pump()

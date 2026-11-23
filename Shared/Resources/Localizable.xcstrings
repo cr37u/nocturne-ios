@@ -1060,6 +1060,52 @@
         }
       }
     },
+    "delete_playlist_choice_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„Doar playlistul” păstrează melodiile în bibliotecă. „Și melodiile” le șterge și de pe telefon."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“Playlist only” keeps the songs in your library. “And its songs” also deletes them from the phone."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "«Только плейлист» оставляет песни в библиотеке. «И песни» удаляет их и с телефона."
+          }
+        }
+      }
+    },
+    "delete_playlist_only": {
+      "extractionState": "manual",
+      "localizations": {
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Șterge doar playlistul"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete playlist only"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить только плейлист"
+          }
+        }
+      }
+    },
     "delete_playlist_title": {
       "extractionState": "manual",
       "localizations": {
@@ -1079,6 +1125,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Удалить плейлист?"
+          }
+        }
+      }
+    },
+    "delete_playlist_with_songs": {
+      "extractionState": "manual",
+      "localizations": {
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Șterge playlistul și melodiile"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete playlist and its songs"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить плейлист и песни"
           }
         }
       }

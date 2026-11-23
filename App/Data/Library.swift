@@ -204,6 +204,22 @@ final class Library: ObservableObject {
         }
     }
 
+    /// Deletes the playlist and, optionally, its songs (files included).
+    func deletePlaylist(_ id: Int64, withSongs: Bool) {
+        if withSongs {
+            for track in tracks(inPlaylist: id) { delete(track) }
+        }
+        deletePlaylist(id)
+    }
+
+    /// Songs whose file was deleted outside the app (Files app) are removed from the library.
+    @discardableResult
+    func pruneMissingFiles() -> Int {
+        let missing = tracks.filter { !$0.fileExists }
+        for track in missing { delete(track) }
+        return missing.count
+    }
+
     func deletePlaylist(_ id: Int64) {
         try? db.writer.write { db in _ = try Playlist.deleteOne(db, key: id) }
     }
