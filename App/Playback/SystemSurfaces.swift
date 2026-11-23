@@ -1,13 +1,11 @@
 import Foundation
 import UIKit
 import Combine
-import WidgetKit
 #if canImport(ActivityKit)
 import ActivityKit
 #endif
 
-/// Keeps the widgets (App Group snapshot + timeline reloads) and the Live Activity in sync with the
-/// player: track change, play/pause, seek (debounced), metadata edits and language changes.
+/// Keeps the (optional) Live Activity in sync with the player: track change, play/pause, seek (debounced), metadata edits and language changes.
 final class SystemSurfaces {
     static let shared = SystemSurfaces()
 
@@ -15,8 +13,6 @@ final class SystemSurfaces {
     private let engine = PlayerEngine.shared
     private var lastSnapshot: NowPlayingSnapshot?
     private var lastTrackId: String?
-    private var lastReload = Date.distantPast
-    private var pendingReload = false
 
     func start() {
         engine.stateChanged
@@ -38,13 +34,8 @@ final class SystemSurfaces {
 
     private func sync(force: Bool) {
         let snapshot = makeSnapshot()
-        let trackChanged = snapshot.trackId != lastTrackId
         lastTrackId = snapshot.trackId
-        if force || snapshot != lastSnapshot {
-            lastSnapshot = snapshot
-            snapshot.save()
-            reloadWidgets(immediately: force || trackChanged)
-        }
+        lastSnapshot = snapshot
         if #available(iOS 16.1, *) {
             LiveActivityController.shared.update(with: snapshot, engine: engine)
         }
@@ -61,21 +52,6 @@ final class SystemSurfaces {
             nextTitle: next?.title, nextArtist: next?.artist,
             artworkFile: SharedArtwork.export(t)
         )
-    }
-
-    private func reloadWidgets(immediately: Bool) {
-        let gap = Date().timeIntervalSince(lastReload)
-        if immediately || gap > 2 {
-            lastReload = Date()
-            WidgetCenter.shared.reloadAllTimelines()
-        } else if !pendingReload {
-            pendingReload = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-                self?.pendingReload = false
-                self?.lastReload = Date()
-                WidgetCenter.shared.reloadAllTimelines()
-            }
-        }
     }
 
     private func endLiveActivity() {

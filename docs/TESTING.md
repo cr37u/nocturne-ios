@@ -19,14 +19,12 @@ Lista de verificat după fiecare build nou, pe un iPhone real.
 
 ## Sistem
 - [ ] **Dynamic Island** (14 Pro și mai noi): compact (copertă + egalizator auriu), minimal (cu altă aplicație activă), extins la apăsare lungă.
-- [ ] **Live Activity pe ecranul blocat** pe toate modelele, inclusiv SE și notch.
-- [ ] **Widgeturi**: mic / mediu / mare / ecran blocat; butoanele (iOS 17+), „URMEAZĂ”, repetare aurie când e activă, „Adaugă link”.
-- [ ] **Setări → Sistem → Grup de aplicații** arată starea corectă.
+- [ ] **Setări → Sistem → Card Live Activity** pornit → cardul apare pe ecranul blocat (toate modelele); oprit → dispare, rămâne doar playerul iOS.
 
 ## Limbă și date
-- [ ] **Setări → Limbă**: Română → English → Русский, live, fără repornire. Widgeturile și Live Activity urmează limba.
+- [ ] **Setări → Limbă**: Română → English → Русский, live, fără repornire. Live Activity urmează limba.
 - [ ] Titlurile melodiilor **rămân neschimbate** după schimbarea limbii.
-- [ ] **Editează detaliile** (⋮ sau „…” în Se redă acum) → titlul nou apare peste tot: listă, Se redă acum, ecran blocat, Control Center, widget, Live Activity.
+- [ ] **Editează detaliile** (⋮ sau „…” în Se redă acum) → titlul nou apare peste tot: listă, Se redă acum, ecran blocat, Control Center, Live Activity.
 - [ ] **Versuri**: „…” → Versuri; linia curentă evidențiată, atingi o linie → sare acolo; merg offline după prima încărcare.
 - [ ] **Fișiere → Pe iPhone → Nocturne → Music**: melodiile `.m4a` sunt vizibile.
 

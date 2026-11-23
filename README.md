@@ -64,9 +64,9 @@ tratate corect, pauză când scoți căștile. După repornire continuă exact d
 </td>
 <td width="50%" valign="top">
 
-### Dynamic Island și Live Activity
-Coperta în stânga și egalizatorul auriu în dreapta pe insulă. Ținut apăsat se deschid
-controalele. Cardul de pe ecranul blocat apare pe **toate** modelele, inclusiv SE și cele cu notch.
+### Dynamic Island
+Coperta și controalele apar în insulă și pe ecranul blocat, ca la orice player iOS.
+Opțional, un card **Live Activity** în culorile Nocturne (Setări → Sistem).
 
 </td>
 </tr>
@@ -81,10 +81,9 @@ corectează un titlu peste tot deodată. Playlisturile importate rămân marcate
 </td>
 <td width="50%" valign="top">
 
-### Widgeturi
-Mic (copertă pe tot), mediu (player) și mare (amestecare, repetare, „URMEAZĂ” și
-**Adaugă link**), plus widgeturi pe ecranul blocat. Butoanele merg fără să deschizi
-aplicația (iOS 17+).
+### Share → Nocturne
+Din aplicația YouTube sau din Safari apeși **Share → Nocturne** și ajungi direct la
+**Adaugă muzică** cu linkul completat. Nu mai copiezi nimic de mână.
 
 </td>
 </tr>
@@ -100,7 +99,7 @@ pentru ascultare offline.
 <td width="50%" valign="top">
 
 ### Română · English · Русский
-Schimbi limba live din **Setări → Limbă**, fără repornire. Widgeturile și Live Activity o urmează.
+Schimbi limba live din **Setări → Limbă**, fără repornire. Live Activity o urmează.
 Titlurile melodiilor sunt datele tale și nu se traduc niciodată.
 
 </td>
@@ -136,7 +135,7 @@ cu Apple ID-ul tău gratuit.
    sau din ultimul build reușit din [Actions](https://github.com/cr37u/nocturne-ios/actions/workflows/ios.yml) (artefactul *Nocturne-unsigned-ipa*).
 2. Instalează **iTunes** și **iCloud** în varianta de pe site-ul Apple (**nu** din Microsoft Store), apoi **Sideloadly**.
 3. Conectează iPhone-ul prin cablu, trage `.ipa` în Sideloadly, scrie Apple ID-ul și apasă **Start**.
-   Lasă **nebifat** „Remove app extensions”, altfel pierzi widgeturile, Live Activity și Share.
+   Lasă **nebifat** „Remove app extensions”, altfel pierzi Live Activity și Share.
 4. Pe iPhone: **Setări → General → VPN și gestionare dispozitiv** → Apple ID-ul tău → **Ai încredere**,
    apoi **Setări → Confidențialitate și securitate → Mod dezvoltator → Activat**.
 
@@ -145,7 +144,8 @@ cu Apple ID-ul tău gratuit.
 > (sau activezi **Auto-refresh**) și aplicația se actualizează peste cea veche, **cu tot cu melodii și setări**.
 
 > [!TIP]
-> Live Activities se activează din **Setări iOS → Nocturne → Live Activities**. Pornesc când dai Play din aplicație.
+> Cardul Live Activity e oprit implicit: iOS arată deja playerul pe ecranul blocat și în Dynamic Island.
+> Îl pornești din **Setări → Sistem → Card Live Activity** dacă vrei și cardul Nocturne.
 
 Interfața e în română, cu engleză și rusă la o atingere distanță.
 
@@ -154,25 +154,9 @@ Interfața e în română, cu engleză și rusă la o atingere distanță.
 <br>
 
 - Maxim **3 aplicații** instalate simultan prin sideload.
-- Maxim **10 App ID-uri pe săptămână**. Nocturne folosește **3**: aplicația, widgeturile și extensia Share.
+- Maxim **10 App ID-uri pe săptămână**. Nocturne folosește **3**: aplicația, extensia Live Activity și extensia Share.
 - Dacă bundle ID-ul `com.nocturne.player` e deja luat, schimbă `BASE_BUNDLE_ID` și `APP_GROUP_ID` în
   `project.yml` (de ex. `com.numele-tau.nocturne` / `group.com.numele-tau.nocturne`) și rulează din nou buildul.
-
-</details>
-
-<details>
-<summary><b>App Groups, widgeturi și Live Activities sub Sideloadly</b></summary>
-<br>
-
-Aplicația, widgeturile, Live Activity și extensia Share împart date printr-un **App Group**. Buildul pune această
-permisiune în `.ipa`, iar Sideloadly o preia la semnare. Unele combinații Sideloadly / Apple ID gratuit nu o păstrează.
-Verifici în **Setări → Sistem → Grup de aplicații**:
-
-- **Activ**: totul funcționează.
-- **Indisponibil**: aplicația merge normal (descărcări, redare, ecran blocat, Control Center, AirPods, Dynamic Island).
-  Widgeturile arată „Deschide Nocturne”, iar **Share → Nocturne** deschide aplicația direct cu linkul.
-
-Butoanele din widgeturi și Live Activity sunt interactive pe iOS 17+. Pe iOS 16 o atingere deschide aplicația.
 
 </details>
 
@@ -186,7 +170,7 @@ Butoanele din widgeturi și Live Activity sunt interactive pe iOS 17+. Pe iOS 16
 | **Playlisturi** | InnerTube `browse` / `next` + oEmbed, limba metadatelor fixă (`en`) |
 | **Descărcări** | `URLSession` în fundal, cereri pe intervale, 4 în paralel |
 | **Versuri** | [LRCLIB](https://lrclib.net) (LRC sincronizat), salvate pe telefon |
-| **Sistem** | ActivityKit (Live Activity + Dynamic Island), WidgetKit, App Intents, Share Extension |
+| **Sistem** | ActivityKit (Live Activity opțională), App Intents, Share Extension |
 | **Stocare** | GRDB (SQLite) cu migrări versionate; audio în `Documents/Music/Nocturne` |
 
 <details>
@@ -198,7 +182,7 @@ Butoanele din widgeturi și Live Activity sunt interactive pe iOS 17+. Pe iOS 16
 - Întreruperile (apeluri, Siri, alte aplicații) pun pauză și reiau când sistemul permite.
   Deconectarea căștilor pune pauză.
 - Coada, poziția, amestecarea și repetarea se salvează continuu în baza de date și se restaurează la pornire.
-- Live Activity pornește odată cu redarea și se actualizează la schimbarea melodiei, play/pauză și derulare.
+- Live Activity (dacă e pornită din Setări) pornește odată cu redarea și se actualizează la schimbarea melodiei, play/pauză și derulare.
   Bara de progres avansează singură, fără actualizări în plus.
 
 </details>
@@ -212,11 +196,11 @@ App/
 ├── Data/        GRDB: modele, migrări, bibliotecă
 ├── YouTube/     StreamResolver (YouTubeKit), catalog de playlisturi, erori
 ├── Download/    descărcări în fundal, copertă
-├── Playback/    player, ecran blocat, Live Activity, sincronizare widgeturi
+├── Playback/    player, ecran blocat, Live Activity
 ├── Lyrics/      LRCLIB + parser LRC
 └── UI/          Bibliotecă, Se redă acum, Adaugă muzică, Playlisturi, Setări, componente
-Shared/          temă, iconițe, traduceri, App Group, intents (aplicație + extensii)
-Widgets/         widgeturi ecran principal / blocat, Live Activity, Dynamic Island
+Shared/          temă, iconițe, traduceri, intents (aplicație + extensii)
+Widgets/         Live Activity și Dynamic Island (opțional)
 ShareExtension/  Share → Nocturne
 ```
 

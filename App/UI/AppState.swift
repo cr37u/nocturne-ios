@@ -1,6 +1,5 @@
 import SwiftUI
 import UIKit
-import WidgetKit
 
 /// Live language switching (no restart): the selection is stored in UserDefaults + the App Group
 /// (widgets, Live Activity, Share Extension follow it), and views observing this object re-render.
@@ -25,7 +24,6 @@ final class LanguageManager: ObservableObject {
         L10n.apply(language)
         code = L10n.current.code
         persist()
-        WidgetCenter.shared.reloadAllTimelines()
         SystemSurfaces.shared.refreshAll()
     }
 
@@ -36,7 +34,6 @@ final class LanguageManager: ObservableObject {
         if code != L10n.current.code {
             code = L10n.current.code
             persist()
-            WidgetCenter.shared.reloadAllTimelines()
             SystemSurfaces.shared.refreshAll()
         }
     }

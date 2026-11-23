@@ -64,9 +64,6 @@ struct SettingsView: View {
                             UserDefaults.standard.set(on, forKey: "liveActivityEnabled")
                             SystemSurfaces.shared.refreshAll()
                         }
-                        SettingsRow(icon: .layers, title: L10n.t("app_group_title"),
-                                    subtitle: L10n.t(AppGroup.isAvailable ? "app_group_on" : "app_group_off") + "\n" + AppGroup.diagnostic,
-                                    accent: AppGroup.isAvailable)
                     }
                 }
 

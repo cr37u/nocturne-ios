@@ -1,6 +1,7 @@
 import SwiftUI
 import WidgetKit
 
+/// The extension only hosts the Live Activity (optional, Setări → Sistem).
 @main
 struct NocturneWidgetBundle: WidgetBundle {
     init() {
@@ -9,8 +10,6 @@ struct NocturneWidgetBundle: WidgetBundle {
     }
 
     var body: some Widget {
-        NowPlayingWidget()
-        LockScreenWidget()
         NocturneLiveActivity()
     }
 }
