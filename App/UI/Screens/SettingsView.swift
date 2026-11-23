@@ -10,6 +10,7 @@ struct SettingsView: View {
     @EnvironmentObject private var library: Library
     @Environment(\.metrics) private var m
     @Environment(\.dismiss) private var dismiss
+    @State private var liveActivityOn = UserDefaults.standard.bool(forKey: "liveActivityEnabled")
 
     var body: some View {
         ScrollView {
@@ -38,9 +39,31 @@ struct SettingsView: View {
 
                 section(L10n.t("settings_system_section")) {
                     VStack(spacing: 10) {
-                        SettingsRow(icon: .activity, title: L10n.t("live_activities_title"),
-                                    subtitle: L10n.t(liveActivitiesEnabled ? "live_activities_on" : "live_activities_off"),
-                                    accent: liveActivitiesEnabled)
+                        Toggle(isOn: $liveActivityOn) {
+                            HStack(spacing: 14) {
+                                IconView(icon: .activity, size: 19)
+                                    .foregroundStyle(liveActivityOn ? NC.amber : NC.text)
+                                    .frame(width: 40, height: 40)
+                                    .background(NC.elevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(L10n.t("live_activity_toggle"))
+                                        .font(.manrope(15, .bold, relativeTo: .body))
+                                        .foregroundStyle(NC.text)
+                                    Text(L10n.t("live_activity_toggle_body") + (liveActivitiesEnabled ? "" : "\n" + L10n.t("live_activities_off")))
+                                        .font(.manrope(13, relativeTo: .footnote))
+                                        .foregroundStyle(NC.text2)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                        }
+                        .tint(NC.brightStart)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(NC.surface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                        .onChange(of: liveActivityOn) { on in
+                            UserDefaults.standard.set(on, forKey: "liveActivityEnabled")
+                            SystemSurfaces.shared.refreshAll()
+                        }
                         SettingsRow(icon: .layers, title: L10n.t("app_group_title"),
                                     subtitle: L10n.t(AppGroup.isAvailable ? "app_group_on" : "app_group_off") + "\n" + AppGroup.diagnostic,
                                     accent: AppGroup.isAvailable)

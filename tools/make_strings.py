@@ -47,6 +47,8 @@ EXTRA = {
     "live_activities_title": ("Live Activities", "Live Activities", "Live Activities"),
     "live_activities_on": ("Activate – ecran blocat și Dynamic Island", "On – Lock Screen and Dynamic Island", "Включены – экран блокировки и Dynamic Island"),
     "live_activities_off": ("Dezactivate în Setări iOS → Nocturne", "Turned off in iOS Settings → Nocturne", "Отключены в Настройках iOS → Nocturne"),
+    "live_activity_toggle": ("Card Live Activity", "Live Activity card", "Карточка Live Activity"),
+    "live_activity_toggle_body": ("Card separat pe ecranul blocat și în Dynamic Island. Playerul sistemului apare oricum.", "Extra card on the Lock Screen and in the Dynamic Island. The system player is always there.", "Отдельная карточка на экране блокировки и в Dynamic Island. Системный плеер есть всегда."),
     "files_title": ("Fișiere", "Files", "Файлы"),
     "files_body": ("Melodiile sunt în aplicația Fișiere → Pe iPhone → Nocturne → Music", "Songs are in the Files app → On My iPhone → Nocturne → Music", "Песни в приложении «Файлы» → На iPhone → Nocturne → Music"),
     "settings_system_section": ("Sistem", "System", "Система"),

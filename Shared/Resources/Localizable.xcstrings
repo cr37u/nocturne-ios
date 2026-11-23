@@ -2279,6 +2279,52 @@
         }
       }
     },
+    "live_activity_toggle": {
+      "extractionState": "manual",
+      "localizations": {
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Card Live Activity"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live Activity card"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Карточка Live Activity"
+          }
+        }
+      }
+    },
+    "live_activity_toggle_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Card separat pe ecranul blocat și în Dynamic Island. Playerul sistemului apare oricum."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extra card on the Lock Screen and in the Dynamic Island. The system player is always there."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отдельная карточка на экране блокировки и в Dynamic Island. Системный плеер есть всегда."
+          }
+        }
+      }
+    },
     "lyrics": {
       "extractionState": "manual",
       "localizations": {

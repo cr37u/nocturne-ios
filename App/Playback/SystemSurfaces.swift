@@ -140,7 +140,16 @@ final class LiveActivityController {
         }
     }
 
+    /// Off by default: iOS already shows its own Now Playing player on the Lock Screen and in the
+    /// Dynamic Island, so the Live Activity would be a second, duplicate player.
+    static let enabledKey = "liveActivityEnabled"
+    static var isEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: enabledKey) }
+        set { UserDefaults.standard.set(newValue, forKey: enabledKey) }
+    }
+
     func update(with snap: NowPlayingSnapshot, engine: PlayerEngine) {
+        guard Self.isEnabled else { end(); return }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         guard let trackId = snap.trackId else { end(); return }
         let state = NocturneActivityAttributes.ContentState(
@@ -184,6 +193,11 @@ final class LiveActivityController {
     }
 
     func end() {
+        if activity == nil {
+            // Also clear cards left from an earlier run.
+            for a in Activity<NocturneActivityAttributes>.activities { Task { await Self.endNow(a) } }
+            return
+        }
         guard let activity else { return }
         self.activity = nil
         lastState = nil
