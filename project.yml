@@ -1,0 +1,204 @@
+name: Nocturne
+
+options:
+  bundleIdPrefix: com.nocturne
+  developmentLanguage: ro
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    # Change these two if the bundle id is already taken for your Apple ID.
+    BASE_BUNDLE_ID: com.nocturne.player
+    APP_GROUP_ID: group.com.nocturne.player
+    # Written by CI from Package.resolved (shown in Setări → Despre).
+    YOUTUBEKIT_VERSION: "0.x"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+    TARGETED_DEVICE_FAMILY: "1"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_EMIT_LOC_STRINGS: NO
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    DEAD_CODE_STRIPPING: YES
+
+packages:
+  GRDB:
+    url: https://github.com/groue/GRDB.swift
+    from: "7.0.0"
+  YouTubeKit:
+    url: https://github.com/alexeichhorn/YouTubeKit
+    from: "0.2.0"
+
+targets:
+  Nocturne:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: App
+      - path: Shared
+    dependencies:
+      - target: NocturneWidgets
+      - target: NocturneShare
+      - package: GRDB
+      - package: YouTubeKit
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Nocturne
+        CFBundleDevelopmentRegion: ro
+        CFBundleLocalizations: [ro, en, ru]
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIUserInterfaceStyle: Dark
+        UIStatusBarStyle: UIStatusBarStyleLightContent
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIRequiresFullScreen: true
+        UIBackgroundModes: [audio]
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        NSSupportsLiveActivities: true
+        NSSupportsLiveActivitiesFrequentUpdates: false
+        UIAppFonts: &fonts
+          - Manrope-ExtraLight.ttf
+          - Manrope-Regular.ttf
+          - Manrope-Medium.ttf
+          - Manrope-SemiBold.ttf
+          - Manrope-Bold.ttf
+          - Manrope-ExtraBold.ttf
+        CFBundleURLTypes:
+          - CFBundleURLName: $(BASE_BUNDLE_ID)
+            CFBundleURLSchemes: [nocturne]
+        NCAppGroup: $(APP_GROUP_ID)
+        NCYouTubeKitVersion: $(YOUTUBEKIT_VERSION)
+    entitlements:
+      path: App/Nocturne.entitlements
+      properties:
+        com.apple.security.application-groups: [$(APP_GROUP_ID)]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BASE_BUNDLE_ID)
+        PRODUCT_NAME: Nocturne
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_PREVIEWS: YES
+
+  NocturneWidgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "16.1"
+    sources:
+      - path: Widgets
+      - path: Shared
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: Nocturne
+        CFBundleDevelopmentRegion: ro
+        CFBundleLocalizations: [ro, en, ru]
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UIAppFonts: *fonts
+        NCAppGroup: $(APP_GROUP_ID)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Widgets/NocturneWidgets.entitlements
+      properties:
+        com.apple.security.application-groups: [$(APP_GROUP_ID)]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BASE_BUNDLE_ID).widgets
+        PRODUCT_NAME: NocturneWidgets
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+
+  NocturneShare:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: ShareExtension
+      - path: Shared
+    info:
+      path: ShareExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Nocturne
+        CFBundleDevelopmentRegion: ro
+        CFBundleLocalizations: [ro, en, ru]
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UIAppFonts: *fonts
+        NCAppGroup: $(APP_GROUP_ID)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsText: true
+    entitlements:
+      path: ShareExtension/NocturneShare.entitlements
+      properties:
+        com.apple.security.application-groups: [$(APP_GROUP_ID)]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BASE_BUNDLE_ID).share
+        PRODUCT_NAME: NocturneShare
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+
+  NocturneTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: Tests
+    dependencies:
+      - target: Nocturne
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BASE_BUNDLE_ID).tests
+        GENERATE_INFOPLIST_FILE: YES
+
+  NocturneUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: UITests
+    dependencies:
+      - target: Nocturne
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BASE_BUNDLE_ID).uitests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Nocturne:
+    build:
+      targets:
+        Nocturne: all
+        NocturneTests: [test]
+        NocturneUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - NocturneTests
+        - NocturneUITests
+    archive:
+      config: Release

@@ -1,0 +1,293 @@
+name: iOS
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT: Nocturne.xcodeproj
+  SCHEME: Nocturne
+  SPM_DIR: SourcePackages
+  DERIVED: build/DerivedData
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Unsigned .ipa for Sideloadly (it signs the app with your Apple ID on install)
+  # ---------------------------------------------------------------------------
+  ipa:
+    name: Build unsigned IPA
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.SPM_DIR }}
+          key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.DERIVED }}
+          key: dd-ipa-${{ runner.os }}-${{ hashFiles('project.yml', 'App/**', 'Shared/**', 'Widgets/**', 'ShareExtension/**') }}
+          restore-keys: dd-ipa-${{ runner.os }}-
+
+      - name: Resolve Swift packages
+        run: |
+          xcodebuild -resolvePackageDependencies -project "$PROJECT" -scheme "$SCHEME" \
+            -clonedSourcePackagesDirPath "$SPM_DIR"
+
+      - name: Read YouTubeKit version
+        id: versions
+        run: |
+          RESOLVED="$PROJECT/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+          YTK=$(python3 - "$RESOLVED" <<'PY'
+          import json, sys
+          d = json.load(open(sys.argv[1]))
+          pins = d.get("pins") or d.get("object", {}).get("pins", [])
+          for p in pins:
+              ident = (p.get("identity") or p.get("package") or "").lower()
+              loc = p.get("location") or p.get("repositoryURL") or ""
+              if ident == "youtubekit" or "YouTubeKit" in loc:
+                  st = p.get("state", {})
+                  print(st.get("version") or st.get("revision", "")[:7])
+                  break
+          else:
+              print("?")
+          PY
+          )
+          echo "youtubekit=$YTK" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "marketing=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "marketing=1.0.0" >> "$GITHUB_OUTPUT"
+          fi
+          echo "YouTubeKit $YTK"
+
+      - name: Archive (Release, unsigned)
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild archive \
+            -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Nocturne.xcarchive \
+            -derivedDataPath "$DERIVED" \
+            -clonedSourcePackagesDirPath "$SPM_DIR" \
+            -skipPackagePluginValidation -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            YOUTUBEKIT_VERSION="${{ steps.versions.outputs.youtubekit }}" \
+            MARKETING_VERSION="${{ steps.versions.outputs.marketing }}" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            2>&1 | tee build/archive.log | (command -v xcbeautify >/dev/null && xcbeautify --renderer github-actions || cat)
+
+      - name: Show compiler errors
+        if: failure()
+        run: |
+          echo "::group::errors"
+          grep -nE "error:|fatal error" build/archive.log | head -200 || true
+          echo "::endgroup::"
+
+      - name: Package Payload/Nocturne.app → Nocturne-unsigned.ipa
+        run: |
+          set -euo pipefail
+          APP="build/Nocturne.xcarchive/Products/Applications/Nocturne.app"
+          test -d "$APP"
+          ls "$APP/PlugIns" || true
+          GROUP=$(grep -E '^\s+APP_GROUP_ID:' project.yml | head -1 | awk '{print $2}')
+          # Entitlements are embedded with an ad-hoc signature so Sideloadly can see the App Group;
+          # Sideloadly replaces the signature with your Apple ID's when installing.
+          cat > build/ent.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>com.apple.security.application-groups</key><array><string>${GROUP}</string></array>
+          </dict></plist>
+          EOF
+          plutil -lint build/ent.plist
+          if [ -d "$APP/Frameworks" ]; then
+            find "$APP/Frameworks" -maxdepth 1 \( -name '*.framework' -o -name '*.dylib' \) -exec codesign -f -s - {} \;
+          fi
+          for EXT in "$APP"/PlugIns/*.appex; do
+            if [ -d "$EXT" ]; then codesign -f -s - --entitlements build/ent.plist "$EXT"; fi
+          done
+          codesign -f -s - --entitlements build/ent.plist "$APP"
+          rm -rf build/Payload && mkdir -p build/Payload
+          cp -R "$APP" build/Payload/
+          (cd build && zip -qry Nocturne-unsigned.ipa Payload)
+          ls -lh build/Nocturne-unsigned.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nocturne-unsigned-ipa
+          path: build/Nocturne-unsigned.ipa
+          if-no-files-found: error
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-log
+          path: build/archive.log
+          if-no-files-found: ignore
+
+      - name: Attach to GitHub Release (tags)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/Nocturne-unsigned.ipa
+          generate_release_notes: true
+
+  # ---------------------------------------------------------------------------
+  # Unit tests + screenshots on 4 simulators (SE, notch, Dynamic Island, Pro Max)
+  # ---------------------------------------------------------------------------
+  simulator:
+    name: Tests & screenshots
+    runs-on: macos-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.SPM_DIR }}
+          key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.DERIVED }}
+          key: dd-sim-${{ runner.os }}-${{ hashFiles('project.yml', 'App/**', 'Shared/**', 'Widgets/**', 'ShareExtension/**', 'Tests/**', 'UITests/**') }}
+          restore-keys: dd-sim-${{ runner.os }}-
+
+      - name: Resolve Swift packages
+        run: |
+          xcodebuild -resolvePackageDependencies -project "$PROJECT" -scheme "$SCHEME" \
+            -clonedSourcePackagesDirPath "$SPM_DIR"
+
+      - name: Build for testing (simulator)
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild build-for-testing \
+            -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$DERIVED" -clonedSourcePackagesDirPath "$SPM_DIR" \
+            -skipPackagePluginValidation -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee build/sim-build.log | (command -v xcbeautify >/dev/null && xcbeautify --renderer github-actions || cat)
+
+      - name: Show compiler errors
+        if: failure()
+        run: grep -nE "error:|fatal error" build/sim-build.log | head -200 || true
+
+      - name: Create simulators
+        run: |
+          set -euo pipefail
+          RUNTIME=$(xcrun simctl list runtimes -j | python3 -c '
+          import json, sys
+          rs = [r for r in json.load(sys.stdin)["runtimes"] if r.get("isAvailable") and r.get("platform", "iOS") == "iOS" and "iOS" in r["name"]]
+          rs.sort(key=lambda r: [int(x) for x in r["version"].split(".")])
+          print(rs[-1]["identifier"])')
+          echo "Runtime: $RUNTIME"
+          : > sims.txt
+          for spec in \
+            "iPhone-SE-3rd-generation|iPhone SE (3rd generation)" \
+            "iPhone-14|iPhone 14" \
+            "iPhone-15-Pro|iPhone 15 Pro" \
+            "iPhone-16-Pro-Max|iPhone 16 Pro Max"; do
+            TYPE="${spec%%|*}"; NAME="${spec#*|}"
+            if UDID=$(xcrun simctl create "$NAME" "com.apple.CoreSimulator.SimDeviceType.$TYPE" "$RUNTIME" 2>/dev/null); then
+              echo "$UDID|$NAME" >> sims.txt
+              echo "Created $NAME ($UDID)"
+            else
+              echo "::warning::Could not create $NAME on $RUNTIME"
+            fi
+          done
+          cat sims.txt
+
+      - name: Unit tests
+        run: |
+          set -o pipefail
+          UDID=$(sed -n '3p' sims.txt | cut -d'|' -f1)
+          [ -z "$UDID" ] && UDID=$(head -1 sims.txt | cut -d'|' -f1)
+          xcodebuild test-without-building \
+            -project "$PROJECT" -scheme "$SCHEME" \
+            -destination "id=$UDID" -derivedDataPath "$DERIVED" \
+            -only-testing:NocturneTests \
+            2>&1 | tee build/unit-tests.log | (command -v xcbeautify >/dev/null && xcbeautify --renderer github-actions || cat)
+
+      - name: Screenshots on every device
+        run: |
+          mkdir -p screenshots
+          while IFS='|' read -r UDID NAME; do
+            [ -z "$UDID" ] && continue
+            echo "::group::$NAME"
+            xcrun simctl boot "$UDID" || true
+            xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 || true
+            TEST_RUNNER_SCREENSHOT_DIR="$PWD/screenshots" \
+            xcodebuild test-without-building \
+              -project "$PROJECT" -scheme "$SCHEME" \
+              -destination "id=$UDID" -derivedDataPath "$DERIVED" \
+              -only-testing:NocturneUITests/ScreenshotTests \
+              -resultBundlePath "build/ui-$UDID.xcresult" \
+              2>&1 | tail -30 || echo "::warning::Screenshots failed on $NAME"
+            xcrun simctl shutdown "$UDID" || true
+            echo "::endgroup::"
+          done < sims.txt
+          find screenshots -name '*.png' | sort
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots
+          if-no-files-found: warn
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-logs
+          path: |
+            build/*.log
+          if-no-files-found: ignore
