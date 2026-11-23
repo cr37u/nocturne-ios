@@ -215,8 +215,8 @@ final class DownloadManager: ObservableObject {
         Task {
             do {
                 let stream = try await resolver.resolveAudio(videoId: d.videoId)
-                var total = stream.contentLength ?? 0
-                if total <= 0 { total = (try? await Self.probeLength(stream.url)) ?? 0 }
+                let known = stream.contentLength ?? 0
+                let total: Int64 = known > 0 ? known : ((try? await Self.probeLength(stream.url)) ?? 0)
                 await MainActor.run {
                     self.starting.remove(id)
                     guard self.isActive(id) else { self.pump(); return }

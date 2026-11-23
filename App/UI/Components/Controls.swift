@@ -120,15 +120,24 @@ struct EqualizerBars: View {
         }
     }
 
+    private func level(_ i: Int, time: Double?) -> CGFloat {
+        guard let t = time else { return rest[i % rest.count] * 0.7 }
+        let phase: Double = t * (5.2 + Double(i) * 1.7) + Double(i) * 1.3
+        let v: Double = (sin(phase) + 1) / 2
+        return CGFloat(0.35 + 0.65 * v)
+    }
+
+    private func barHeight(_ i: Int, time: Double?) -> CGFloat {
+        let h: CGFloat = height * level(i, time: time)
+        return max(barWidth, h)
+    }
+
     private func bar(time: Double?) -> some View {
         HStack(alignment: .bottom, spacing: spacing) {
-            ForEach(0..<bars, id: \.self) { i in
-                let h: CGFloat = {
-                    guard let t = time else { return rest[i % rest.count] * 0.7 }
-                    let v = sin(t * (5.2 + Double(i) * 1.7) + Double(i) * 1.3)
-                    return CGFloat(0.35 + 0.65 * (v + 1) / 2)
-                }()
-                Capsule().fill(color).frame(width: barWidth, height: max(barWidth, height * h))
+            ForEach(0..<bars, id: \.self) { (i: Int) in
+                Capsule()
+                    .fill(color)
+                    .frame(width: barWidth, height: barHeight(i, time: time))
             }
         }
         .frame(height: height, alignment: .bottom)
