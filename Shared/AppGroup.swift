@@ -8,7 +8,7 @@ import Foundation
 /// the Share Extension hands the link over through the `nocturne://add` URL, the app works normally.
 enum AppGroup {
     static let identifier: String? = {
-        var candidates: [String] = []
+        var candidates: [String] = provisionedGroups
         if let fromPlist = Bundle.main.object(forInfoDictionaryKey: "NCAppGroup") as? String,
            !fromPlist.isEmpty, !fromPlist.contains("$(") {
             candidates.append(fromPlist)
@@ -16,6 +16,8 @@ enum AppGroup {
         if let appId = appBundleIdentifier {
             candidates.append("group.\(appId)")
         }
+        var seen = Set<String>()
+        candidates = candidates.filter { seen.insert($0).inserted }
         for id in candidates {
             guard let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: id) else { continue }
             // Make sure we can really write there (an unsigned / re-signed build may not be entitled).
@@ -32,6 +34,27 @@ enum AppGroup {
     }()
 
     static var isAvailable: Bool { identifier != nil }
+
+    /// App Groups granted by the provisioning profile the sideloading tool installed
+    /// (`embedded.mobileprovision`). Tools such as Sideloadly may rename the group when they
+    /// re-sign, so this is the authoritative list.
+    static let provisionedGroups: [String] = {
+        guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
+              let data = try? Data(contentsOf: url),
+              let start = data.range(of: Data("<?xml".utf8)),
+              let end = data.range(of: Data("</plist>".utf8), in: start.lowerBound..<data.endIndex) else { return [] }
+        let xml = data.subdata(in: start.lowerBound..<end.upperBound)
+        guard let plist = try? PropertyListSerialization.propertyList(from: xml, options: [], format: nil) as? [String: Any],
+              let entitlements = plist["Entitlements"] as? [String: Any] else { return [] }
+        return entitlements["com.apple.security.application-groups"] as? [String] ?? []
+    }()
+
+    /// Short diagnostic for Settings ("profile: none · com.x.y").
+    static var diagnostic: String {
+        let profile = provisionedGroups.isEmpty ? "profile: none" : "profile: " + provisionedGroups.joined(separator: ", ")
+        let id = identifier.map { "using: \($0)" } ?? "using: —"
+        return "\(id) · \(profile) · \(Bundle.main.bundleIdentifier ?? "?")"
+    }
 
     static var container: URL? {
         identifier.flatMap { FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0) }

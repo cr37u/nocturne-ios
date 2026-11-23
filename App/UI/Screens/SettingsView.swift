@@ -42,7 +42,7 @@ struct SettingsView: View {
                                     subtitle: L10n.t(liveActivitiesEnabled ? "live_activities_on" : "live_activities_off"),
                                     accent: liveActivitiesEnabled)
                         SettingsRow(icon: .layers, title: L10n.t("app_group_title"),
-                                    subtitle: L10n.t(AppGroup.isAvailable ? "app_group_on" : "app_group_off"),
+                                    subtitle: L10n.t(AppGroup.isAvailable ? "app_group_on" : "app_group_off") + "\n" + AppGroup.diagnostic,
                                     accent: AppGroup.isAvailable)
                     }
                 }

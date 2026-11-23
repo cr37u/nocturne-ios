@@ -146,7 +146,8 @@ final class LiveActivityController {
         let state = NocturneActivityAttributes.ContentState(
             trackId: trackId, title: snap.title, artist: snap.artist, playlist: snap.playlist,
             isPlaying: snap.isPlaying, position: snap.position, duration: snap.duration, updatedAt: snap.updatedAt,
-            artworkFile: snap.artworkFile, language: L10n.current.code
+            artworkFile: snap.artworkFile, artworkData: snap.artworkFile == nil ? Self.tinyArtwork(engine.current) : nil,
+            language: L10n.current.code
         )
         if let activity, activity.activityState != .ended && activity.activityState != .dismissed {
             if let last = lastState, Self.equivalent(last, state) { return }
@@ -187,6 +188,25 @@ final class LiveActivityController {
         self.activity = nil
         lastState = nil
         Task { await Self.endNow(activity) }
+    }
+
+    private static var tinyCache: (id: String, data: Data?)?
+
+    /// ~48 px JPEG that fits in the activity payload (ActivityKit allows ~4 KB in total).
+    private static func tinyArtwork(_ track: Track?) -> Data? {
+        guard let track else { return nil }
+        if let c = tinyCache, c.id == track.id { return c.data }
+        var result: Data?
+        if let image = Artwork.load(track.artworkFile) {
+            for (side, quality) in [(56.0, 0.55), (44.0, 0.45), (36.0, 0.4)] {
+                if let data = Artwork.resized(image, side: CGFloat(side)).jpegData(compressionQuality: CGFloat(quality)), data.count <= 1700 {
+                    result = data
+                    break
+                }
+            }
+        }
+        tinyCache = (track.id, result)
+        return result
     }
 
     private static func equivalent(_ a: NocturneActivityAttributes.ContentState, _ b: NocturneActivityAttributes.ContentState) -> Bool {

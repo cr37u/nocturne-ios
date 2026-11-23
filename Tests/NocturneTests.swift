@@ -69,6 +69,12 @@ final class LyricsParsingTests: XCTestCase {
         XCTAssertEqual(a2, "Artist")
         XCTAssertEqual(t2, "Song")
     }
+
+    func testCandidatesIncludeChannelName() {
+        let c = SongQuery.candidates(title: "Макс Корж — Animals prod. Insando (Official Video)", channel: "Max Korzh")
+        XCTAssertEqual(c.artists, ["Макс Корж", "Max Korzh"])
+        XCTAssertEqual(c.titles.first, "Animals")
+    }
 }
 
 final class LocalizationTests: XCTestCase {

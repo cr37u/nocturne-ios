@@ -17,6 +17,8 @@ struct NocturneActivityAttributes: ActivityAttributes {
         var updatedAt: Date
         /// File in the App Group `Artwork/` folder (nil → gradient + moon placeholder).
         var artworkFile: String?
+        /// Tiny JPEG cover carried in the activity itself (used when there is no App Group).
+        var artworkData: Data?
         /// UI language code at the time of the update (Live Activity strings follow the app).
         var language: String
 

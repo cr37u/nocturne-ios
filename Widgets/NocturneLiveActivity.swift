@@ -72,6 +72,8 @@ private struct ActivityArtwork: View {
         ZStack {
             if let url = NowPlayingSnapshot.artworkURL(state.artworkFile), let image = UIImage(contentsOfFile: url.path) {
                 Image(uiImage: image).resizable().scaledToFill()
+            } else if let data = state.artworkData, let image = UIImage(data: data) {
+                Image(uiImage: image).resizable().scaledToFill()
             } else {
                 NC.artwork
                 if iconScale > 0 {

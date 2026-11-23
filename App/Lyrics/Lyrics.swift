@@ -25,7 +25,7 @@ enum LyricsRepository {
     }
 
     private static func cacheURL(_ trackId: String) -> URL {
-        Storage.lyricsDir.appendingPathComponent("\(trackId).json")
+        Storage.lyricsDir.appendingPathComponent("\(trackId).v2.json")
     }
 
     /// Cached result only (no network). "Not found" is re-checked after a week.
@@ -60,36 +60,83 @@ enum LyricsRepository {
         return result
     }
 
+    /// Tries several artist / title spellings (title artist and channel name, "prod." / "feat." removed),
+    /// then picks the best search result by title match, artist match, synced lyrics and duration.
     private static func fetch(_ track: Track) async throws -> Lyrics {
-        let (artist, title) = SongQuery.from(title: track.title, channel: track.artist)
-        let duration = Int(track.duration)
+        let q = SongQuery.candidates(title: track.title, channel: track.artist)
+        let duration = track.duration
 
-        // 1. Exact signature: artist + title + duration (±2 s).
-        if !artist.isEmpty {
-            var comps = URLComponents(string: "\(base)/get")!
-            comps.queryItems = [.init(name: "artist_name", value: artist), .init(name: "track_name", value: title)]
-            if duration > 0 { comps.queryItems?.append(.init(name: "duration", value: String(duration))) }
-            if let body = try await request(comps.url!),
-               let obj = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
-               let parsed = parse(obj) {
-                return parsed
+        // 1. Exact signatures (fast path).
+        for artist in q.artists.prefix(2) {
+            for title in q.titles.prefix(2) {
+                var comps = URLComponents(string: "\(base)/get")!
+                comps.queryItems = [.init(name: "artist_name", value: artist), .init(name: "track_name", value: title)]
+                if duration > 0 { comps.queryItems?.append(.init(name: "duration", value: String(Int(duration)))) }
+                if let body = try await request(comps.url!),
+                   let obj = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+                   let parsed = parse(obj) {
+                    return parsed
+                }
             }
         }
 
-        // 2. Free search, best duration match.
-        var search = URLComponents(string: "\(base)/search")!
-        search.queryItems = [.init(name: "q", value: [artist, title].filter { !$0.isEmpty }.joined(separator: " "))]
-        guard let body = try await request(search.url!),
-              let arr = try? JSONSerialization.jsonObject(with: body) as? [[String: Any]] else { return .notFound }
-        func dur(_ o: [String: Any]) -> Double { (o["duration"] as? Double) ?? Double(o["duration"] as? Int ?? 0) }
-        let candidates = arr
-            .filter { duration <= 0 || abs(dur($0) - Double(duration)) <= 8 }
-            .sorted { a, b in
-                let sa = (a["syncedLyrics"] as? String) != nil, sb = (b["syncedLyrics"] as? String) != nil
-                if sa != sb { return sa }
-                return abs(dur(a) - Double(duration)) < abs(dur(b) - Double(duration))
+        // 2. Searches, collected and ranked.
+        var queries: [[URLQueryItem]] = []
+        if let title = q.titles.first {
+            for artist in q.artists.prefix(2) {
+                queries.append([.init(name: "track_name", value: title), .init(name: "artist_name", value: artist)])
             }
-        return candidates.first.flatMap(parse) ?? .notFound
+            for artist in q.artists.prefix(2) {
+                queries.append([.init(name: "q", value: "\(artist) \(title)")])
+            }
+            queries.append([.init(name: "q", value: title)])
+        }
+        var results: [[String: Any]] = []
+        for items in queries {
+            var comps = URLComponents(string: "\(base)/search")!
+            comps.queryItems = items
+            if let body = try await request(comps.url!),
+               let arr = try? JSONSerialization.jsonObject(with: body) as? [[String: Any]] {
+                results.append(contentsOf: arr)
+            }
+            if let best = pickBest(results, q: q, duration: duration), (best["syncedLyrics"] as? String) != nil {
+                return parse(best) ?? .notFound
+            }
+        }
+        if let best = pickBest(results, q: q, duration: duration), let parsed = parse(best) {
+            return parsed
+        }
+        return .notFound
+    }
+
+    private static func pickBest(_ results: [[String: Any]], q: SongQuery.Candidates, duration: Double) -> [String: Any]? {
+        func dur(_ o: [String: Any]) -> Double { (o["duration"] as? NSNumber)?.doubleValue ?? 0 }
+        let titles = q.titles.map(SearchKey.normalize).filter { !$0.isEmpty }
+        let artists = q.artists.map(SearchKey.normalize).filter { !$0.isEmpty }
+        var bestScore = -Double.infinity
+        var bestItem: [String: Any]?
+        for o in results {
+            let name = SearchKey.normalize(o["trackName"] as? String ?? "")
+            let artist = SearchKey.normalize(o["artistName"] as? String ?? "")
+            if name.isEmpty { continue }
+            let exactTitle = titles.contains(name) || titles.contains(where: { name.hasSuffix(" - " + $0) })
+            let looseTitle = titles.contains(where: { name.contains($0) || $0.contains(name) })
+            if !exactTitle && !looseTitle { continue }
+            let artistMatch = artists.contains(where: { artist.contains($0) || $0.contains(artist) || name.contains($0) })
+            var diff = 0.0
+            if duration > 0 && dur(o) > 0 { diff = abs(dur(o) - duration) }
+            // Without an artist match the duration must agree closely.
+            if !artistMatch && diff > 8 { continue }
+            var score = exactTitle ? 40.0 : 15.0
+            if artistMatch { score += 40 }
+            if (o["syncedLyrics"] as? String) != nil { score += 15 }
+            score -= min(30, diff / 4)
+            if score > bestScore {
+                bestScore = score
+                bestItem = o
+            }
+        }
+        return bestItem
     }
 
     /// Body for 200, nil for 404; throws for network / server errors.
@@ -142,30 +189,69 @@ enum Lrc {
     }
 }
 
-/// YouTube title → (artist, song): "Kavinsky - Nightcall (Official Audio)" → ("Kavinsky", "Nightcall").
+/// YouTube title → artist / song candidates:
+/// "Макс Корж — Animals prod. Insando (Official Video)" on channel "Max Korzh"
+/// → artists ["Макс Корж", "Max Korzh"], titles ["Animals"].
 enum SongQuery {
-    static func from(title: String, channel: String) -> (String, String) {
-        func replace(_ s: String, _ pattern: String, _ with: String = "") -> String {
-            guard let r = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return s }
-            return r.stringByReplacingMatches(in: s, range: NSRange(location: 0, length: (s as NSString).length), withTemplate: with)
-        }
-        let noise = #"\s*[(\[][^)\]]*(official|video|audio|lyric|lyrics|visualizer|clip|премьера|клип|hd|4k|remaster|live|explicit)[^)\]]*[)\]]"#
-        let feat = #"\s+(ft\.?|feat\.?|featuring)\s+.*$"#
-        var t = replace(title, noise)
-        t = replace(t, #"\s{2,}"#, " ").trimmingCharacters(in: .whitespaces)
-        var artist = replace(channel, #"\s*-\s*Topic$"#).trimmingCharacters(in: .whitespaces)
-        if let r = try? NSRegularExpression(pattern: #"\s[-–—]\s"#),
-           let m = r.firstMatch(in: t, range: NSRange(location: 0, length: (t as NSString).length)) {
-            let ns = t as NSString
-            artist = ns.substring(to: m.range.location).trimmingCharacters(in: .whitespaces)
-            t = ns.substring(from: m.range.location + m.range.length).trimmingCharacters(in: .whitespaces)
-        }
-        t = replace(t, feat).trimmingCharacters(in: CharacterSet(charactersIn: " \"“”«»"))
-        artist = replace(artist, feat)
+    struct Candidates {
+        var artists: [String]
+        var titles: [String]
+    }
+
+    private static func replace(_ s: String, _ pattern: String, _ with: String = "") -> String {
+        guard let r = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return s }
+        return r.stringByReplacingMatches(in: s, range: NSRange(location: 0, length: (s as NSString).length), withTemplate: with)
+    }
+
+    private static let noise = #"\s*[(\[][^)\]]*(official|video|audio|lyric|lyrics|visualizer|clip|премьера|клип|hd|4k|remaster|live|explicit|mood|prod)[^)\]]*[)\]]"#
+    private static let feat = #"\s+(ft\.?|feat\.?|featuring)\s+.*$"#
+    private static let prod = #"\s+(prod\.?|produced by|prod by)\s+.*$"#
+
+    static func cleanTitle(_ raw: String) -> String {
+        var t = replace(raw, noise)
+        t = replace(t, #"\s+(\||//)\s.*$"#)
+        t = replace(t, prod)
+        t = replace(t, feat)
+        t = replace(t, #"\s*[(\[][^)\]]*[)\]]\s*$"#)
+        t = replace(t, #"\s{2,}"#, " ")
+        return t.trimmingCharacters(in: CharacterSet(charactersIn: " \"“”«»'.-–—"))
+    }
+
+    static func cleanArtist(_ raw: String) -> String {
+        var a = replace(raw, #"\s*-\s*Topic$"#)
+        a = replace(a, #"VEVO$"#)
+        a = replace(a, feat)
         if let r = try? NSRegularExpression(pattern: #"\s*,\s*|\s+(?:&|×|x|X)\s+"#),
-           let m = r.firstMatch(in: artist, range: NSRange(location: 0, length: (artist as NSString).length)) {
-            artist = (artist as NSString).substring(to: m.range.location)
+           let m = r.firstMatch(in: a, range: NSRange(location: 0, length: (a as NSString).length)) {
+            a = (a as NSString).substring(to: m.range.location)
         }
-        return (artist.trimmingCharacters(in: .whitespaces), t)
+        return a.trimmingCharacters(in: .whitespaces)
+    }
+
+    static func candidates(title: String, channel: String) -> Candidates {
+        var artists: [String] = []
+        var titles: [String] = []
+        func add(_ value: String, _ list: inout [String]) {
+            let v = value.trimmingCharacters(in: .whitespaces)
+            if v.isEmpty || v == "YouTube" { return }
+            if list.contains(where: { SearchKey.normalize($0) == SearchKey.normalize(v) }) { return }
+            list.append(v)
+        }
+        let base = replace(title, noise)
+        if let r = try? NSRegularExpression(pattern: #"\s[-–—]\s"#),
+           let m = r.firstMatch(in: base, range: NSRange(location: 0, length: (base as NSString).length)) {
+            let ns = base as NSString
+            add(cleanArtist(ns.substring(to: m.range.location)), &artists)
+            add(cleanTitle(ns.substring(from: m.range.location + m.range.length)), &titles)
+        }
+        add(cleanArtist(channel), &artists)
+        add(cleanTitle(title), &titles)
+        return Candidates(artists: artists, titles: titles)
+    }
+
+    /// First artist / title pair.
+    static func from(title: String, channel: String) -> (String, String) {
+        let c = candidates(title: title, channel: channel)
+        return (c.artists.first ?? "", c.titles.first ?? title)
     }
 }
