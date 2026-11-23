@@ -7,13 +7,17 @@ import AVFoundation
 enum AudioFixer {
     enum FixError: Error { case noAudioTrack, writerFailed }
 
-    /// Copies the audio samples of `source` into a new standard m4a at `destination`.
-    static func remux(_ source: URL, to destination: URL) async throws {
+    /// Copies the audio samples of `source` into a new standard m4a at `destination`, keeping only
+    /// the first `limitSeconds` (the real song length from YouTube) so the bogus tail is dropped.
+    static func remux(_ source: URL, to destination: URL, limitSeconds: Double = 0) async throws {
         try? FileManager.default.removeItem(at: destination)
         let asset = AVURLAsset(url: source)
         guard let track = asset.tracks(withMediaType: .audio).first else { throw FixError.noAudioTrack }
 
         let reader = try AVAssetReader(asset: asset)
+        if limitSeconds > 1 {
+            reader.timeRange = CMTimeRange(start: .zero, duration: CMTime(seconds: limitSeconds + 0.3, preferredTimescale: 44100))
+        }
         let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
         output.alwaysCopiesSampleData = false
         guard reader.canAdd(output) else { throw FixError.writerFailed }
@@ -68,7 +72,8 @@ enum AudioFixer {
 
     // MARK: - Repair songs downloaded before the fix
 
-    private static let fixedKey = "remuxedTrackIds"
+    // v2: the first repair kept the wrong timing; everything is re-checked and trimmed.
+    private static let fixedKey = "remuxedTrackIds.v2"
 
     /// Re-muxes every track that hasn't been fixed yet (skips the one currently playing).
     static func repairLibrary(skipping currentId: @escaping () -> String?) async {
@@ -78,9 +83,24 @@ enum AudioFixer {
             if await MainActor.run(body: { currentId() }) == track.id { continue }
             let src = track.fileURL
             let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("fix-\(track.id).m4a")
+            // Ask YouTube for the real length; fall back to the stored one.
+            let ytSeconds = await YouTubeCatalog.shared.videoLength(track.id)
+            let real = ytSeconds > 0 ? Double(ytSeconds) : track.duration
+            let current = Double(durationMs(src)) / 1000
+            if real > 0 && current > 0 && current <= real + 2 {
+                // Already correct: just make sure the stored length matches.
+                if abs(track.duration - current) > 2 {
+                    let size = fileSize(src)
+                    await MainActor.run { Library.shared.updateFileInfo(track.id, durationMs: Int64(current * 1000), sizeBytes: size) }
+                }
+                fixed.insert(track.id)
+                UserDefaults.standard.set(Array(fixed), forKey: fixedKey)
+                continue
+            }
             do {
-                try await remux(src, to: tmp)
-                let ms = durationMs(tmp)
+                try await remux(src, to: tmp, limitSeconds: real)
+                var ms = durationMs(tmp)
+                if real > 0 && Double(ms) / 1000 > real + 2 { ms = Int64(real * 1000) }
                 guard ms > 0 else { throw FixError.writerFailed }
                 _ = try FileManager.default.replaceItemAt(src, withItemAt: tmp)
                 let size = fileSize(src)

@@ -23,6 +23,7 @@ struct ResolvedLink {
 protocol CatalogProvider {
     func resolve(_ link: ParsedLink) async throws -> ResolvedLink
     func videoMetadata(_ videoId: String) async throws -> RemoteItem
+    func videoLength(_ videoId: String) async -> Int
 }
 
 /// Uses YouTube's public web endpoints (InnerTube `browse` / `next`, oEmbed) with a FIXED metadata
@@ -84,6 +85,14 @@ final class YouTubeCatalog: CatalogProvider {
         }
         return RemoteItem(videoId: videoId, title: title, artist: Self.cleanArtist(obj["author_name"] as? String),
                           durationSec: 0, thumbnailUrl: Self.thumbnail(videoId))
+    }
+
+    /// Real length of a video in seconds, as YouTube reports it (0 when unknown).
+    func videoLength(_ videoId: String) async -> Int {
+        guard let json = try? await post("player", body: ["videoId": videoId]),
+              let details = (json as? [String: Any])?["videoDetails"] as? [String: Any] else { return 0 }
+        if let s = details["lengthSeconds"] as? String, let v = Int(s) { return v }
+        return (details["lengthSeconds"] as? NSNumber)?.intValue ?? 0
     }
 
     // MARK: playlists (every page)

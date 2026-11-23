@@ -389,20 +389,23 @@ final class DownloadManager: ObservableObject {
             let artist = (meta?.artist).flatMap { $0 == "YouTube" ? nil : $0 } ?? row.artist
             let artwork = await Artwork.download(videoId: row.videoId)
             // YouTube's DASH m4a has a wrong length in its header: rewrite it as a plain m4a.
+            var realSeconds = Double(row.durationMs) / 1000
+            if realSeconds <= 0 { realSeconds = Double(await self.catalog.videoLength(row.videoId)) }
             let fixedPart = Storage.partsDir.appendingPathComponent("\(id).fixed.m4a")
             var finalPart = part
-            if (try? await AudioFixer.remux(part, to: fixedPart)) != nil, AudioFixer.durationMs(fixedPart) > 0 {
+            if (try? await AudioFixer.remux(part, to: fixedPart, limitSeconds: realSeconds)) != nil, AudioFixer.durationMs(fixedPart) > 0 {
                 try? FileManager.default.removeItem(at: part)
                 finalPart = fixedPart
             }
             let readyPart = finalPart
+            let knownMs = Int64(realSeconds * 1000)
             await MainActor.run {
-                self.finalize(row: row, job: job, part: readyPart, title: title, artist: artist, artworkFile: artwork)
+                self.finalize(row: row, job: job, part: readyPart, title: title, artist: artist, artworkFile: artwork, knownMs: knownMs)
             }
         }
     }
 
-    private func finalize(row: DownloadItem, job: Job, part: URL, title: String, artist: String, artworkFile: String?) {
+    private func finalize(row: DownloadItem, job: Job, part: URL, title: String, artist: String, artworkFile: String?, knownMs: Int64) {
         guard let id = row.id else { return }
         let fileName = Storage.audioFileName(title: title, videoId: row.videoId, ext: job.ext)
         let dest = Storage.musicDir.appendingPathComponent(fileName)
@@ -411,11 +414,11 @@ final class DownloadManager: ObservableObject {
             try FileManager.default.moveItem(at: part, to: dest)
             let size = (try? FileManager.default.attributesOfItem(atPath: dest.path)[.size] as? NSNumber)?.int64Value ?? 0
             // Prefer the length measured from the repaired file; fall back to YouTube's value.
+            // YouTube's length is the truth; the file is trimmed to it.
             let measured = AudioFixer.durationMs(dest)
-            var durationMs = row.durationMs
-            if measured > 0 && (durationMs <= 0 || Double(measured) < Double(durationMs) * 1.3) {
-                durationMs = measured
-            }
+            var durationMs = knownMs > 0 ? knownMs : row.durationMs
+            if durationMs <= 0 { durationMs = measured }
+            else if measured > 0 && measured < durationMs { durationMs = measured }
             AudioFixer.markFixed(row.videoId)
             let track = Track(
                 id: row.videoId, title: title, artist: artist, durationMs: durationMs, fileName: fileName,
