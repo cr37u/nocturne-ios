@@ -56,7 +56,10 @@ struct NowPlayingView: View {
             Spacer(minLength: 12)
             HStack(spacing: 12) {
                 VolumeSlider()
-                AirPlayButton()
+                IconButton(icon: .lyrics, label: L10n.t("cd_lyrics"), iconSize: 20, background: NC.onGradientButton) {
+                    app.lyricsOpen = true
+                }
+                .accessibilityIdentifier("np-lyrics")
                 IconButton(icon: .queue, label: L10n.t("cd_queue"), iconSize: 20, background: NC.onGradientButton) {
                     app.queueOpen = true
                 }
