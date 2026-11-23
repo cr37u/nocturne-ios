@@ -146,6 +146,13 @@ final class Library: ObservableObject {
         }
     }
 
+    /// After the m4a repair: real length and size.
+    func updateFileInfo(_ id: String, durationMs: Int64, sizeBytes: Int64) {
+        try? db.writer.write { db in
+            try db.execute(sql: "UPDATE tracks SET durationMs = ?, sizeBytes = ? WHERE id = ?", arguments: [durationMs, sizeBytes, id])
+        }
+    }
+
     func delete(_ track: Track) {
         try? FileManager.default.removeItem(at: track.fileURL)
         if let art = track.artworkURL { try? FileManager.default.removeItem(at: art) }

@@ -56,6 +56,7 @@ final class DownloadManager: ObservableObject {
     /// Download id → job. Accessed on the main queue only.
     private var jobs: [Int64: Job] = [:]
     private var starting: Set<Int64> = []
+    private var repairStarted = false
     private lazy var delegate = SessionDelegate(owner: self)
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.background(withIdentifier: Self.sessionId)
@@ -72,6 +73,12 @@ final class DownloadManager: ObservableObject {
     /// Re-attaches to tasks that survived a relaunch, then resumes the queue.
     func start() {
         guard !ProcessInfo.processInfo.arguments.contains("-demoData") else { return }
+        if !repairStarted {
+            repairStarted = true
+            Task.detached(priority: .utility) {
+                await AudioFixer.repairLibrary(skipping: { PlayerEngine.shared.current?.id })
+            }
+        }
         session.getAllTasks { [weak self] tasks in
             DispatchQueue.main.async {
                 guard let self else { return }
@@ -381,8 +388,16 @@ final class DownloadManager: ObservableObject {
             let title = meta?.title ?? row.title
             let artist = (meta?.artist).flatMap { $0 == "YouTube" ? nil : $0 } ?? row.artist
             let artwork = await Artwork.download(videoId: row.videoId)
+            // YouTube's DASH m4a has a wrong length in its header: rewrite it as a plain m4a.
+            let fixedPart = Storage.partsDir.appendingPathComponent("\(id).fixed.m4a")
+            var finalPart = part
+            if (try? await AudioFixer.remux(part, to: fixedPart)) != nil, AudioFixer.durationMs(fixedPart) > 0 {
+                try? FileManager.default.removeItem(at: part)
+                finalPart = fixedPart
+            }
+            let readyPart = finalPart
             await MainActor.run {
-                self.finalize(row: row, job: job, part: part, title: title, artist: artist, artworkFile: artwork)
+                self.finalize(row: row, job: job, part: readyPart, title: title, artist: artist, artworkFile: artwork)
             }
         }
     }
@@ -395,12 +410,13 @@ final class DownloadManager: ObservableObject {
             try? FileManager.default.removeItem(at: dest)
             try FileManager.default.moveItem(at: part, to: dest)
             let size = (try? FileManager.default.attributesOfItem(atPath: dest.path)[.size] as? NSNumber)?.int64Value ?? 0
+            // Prefer the length measured from the repaired file; fall back to YouTube's value.
+            let measured = AudioFixer.durationMs(dest)
             var durationMs = row.durationMs
-            if durationMs <= 0 {
-                let asset = AVURLAsset(url: dest)
-                let secs = CMTimeGetSeconds(asset.duration)
-                if secs.isFinite && secs > 0 { durationMs = Int64(secs * 1000) }
+            if measured > 0 && (durationMs <= 0 || Double(measured) < Double(durationMs) * 1.3) {
+                durationMs = measured
             }
+            AudioFixer.markFixed(row.videoId)
             let track = Track(
                 id: row.videoId, title: title, artist: artist, durationMs: durationMs, fileName: fileName,
                 artworkFile: artworkFile, sizeBytes: size, format: job.format, addedAt: Date(), isFavorite: false,

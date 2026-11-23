@@ -128,9 +128,15 @@ final class PlayerEngine: NSObject, ObservableObject {
     private func tick(_ time: CMTime) {
         let pos = CMTimeGetSeconds(time)
         if pos.isFinite { clock.position = pos }
-        if let item = currentItem {
-            let d = CMTimeGetSeconds(item.duration)
+        if let item = currentItem, let track = current {
+            var d = CMTimeGetSeconds(item.duration)
+            // Unrepaired YouTube files report a bogus length (2x, even hours): keep the known one.
+            if track.duration > 0 && d.isFinite && d > track.duration * 1.3 { d = track.duration }
             if d.isFinite && d > 0 && abs(d - clock.duration) > 0.5 { clock.duration = d; updateNowPlayingInfo() }
+            // Past the real end of the audio: go on instead of playing silence.
+            if track.duration > 0 && pos.isFinite && pos > track.duration + 1.5 && isPlaying {
+                skipPastEnd()
+            }
         }
         if abs(clock.position - lastSavedPosition) >= 5 {
             lastSavedPosition = clock.position
@@ -459,6 +465,25 @@ final class PlayerEngine: NSObject, ObservableObject {
                 self.stateChanged.send()
                 NotificationCenter.default.post(name: .nocturneQueueEnded, object: nil)
             }
+        }
+    }
+
+    /// Same as reaching the end of the item (used when the file's header lies about its length).
+    private func skipPastEnd() {
+        if repeatMode == .one {
+            player.seek(to: .zero)
+            return
+        }
+        if let n = nextIndex(userAction: false) {
+            index = n
+            loadCurrent(autoplay: true)
+            saveIndex()
+        } else {
+            intendPlaying = false
+            player.pause()
+            isPlaying = false
+            seek(to: 0)
+            NotificationCenter.default.post(name: .nocturneQueueEnded, object: nil)
         }
     }
 
