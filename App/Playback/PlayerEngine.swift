@@ -71,6 +71,8 @@ final class PlayerEngine: NSObject, ObservableObject {
     private var timeObserver: Any?
     private var cancellables = Set<AnyCancellable>()
     private var wasPlayingBeforeInterruption = false
+    /// What the user / system asked for. While switching tracks AVPlayer briefly reports "paused".
+    private var intendPlaying = false
     private var lastSavedPosition: Double = 0
     private var demoMode: Bool { ProcessInfo.processInfo.arguments.contains("-demoData") }
     private let db = AppDatabase.shared
@@ -111,6 +113,8 @@ final class PlayerEngine: NSObject, ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] status in
                 guard let self, !self.demoMode else { return }
+                // Ignore the transient pause during an item switch while playback is intended.
+                if status == .paused && self.intendPlaying && self.currentItem != nil { return }
                 let playing = status != .paused
                 if playing != self.isPlaying {
                     self.isPlaying = playing
@@ -165,6 +169,7 @@ final class PlayerEngine: NSObject, ObservableObject {
         guard current != nil else { return }
         if currentItem == nil { loadCurrent(autoplay: true, seekTo: clock.position); return }
         try? AVAudioSession.sharedInstance().setActive(true)
+        intendPlaying = true
         player.play()
         isPlaying = true
         updateNowPlayingInfo()
@@ -172,6 +177,7 @@ final class PlayerEngine: NSObject, ObservableObject {
     }
 
     func pause() {
+        intendPlaying = false
         player.pause()
         isPlaying = false
         db.setSetting("player.position", String(clock.position))
@@ -187,8 +193,9 @@ final class PlayerEngine: NSObject, ObservableObject {
     }
 
     /// Restarts the track when more than 3 s in, otherwise goes to the previous one.
-    func previous() {
-        if clock.position > 3 || queue.count <= 1 {
+    /// `force` (swipe right) always goes to the previous track.
+    func previous(force: Bool = false) {
+        if (!force && clock.position > 3) || queue.count <= 1 {
             seek(to: 0)
             return
         }
@@ -311,6 +318,7 @@ final class PlayerEngine: NSObject, ObservableObject {
     }
 
     func stop() {
+        intendPlaying = false
         player.pause()
         player.removeAllItems()
         currentItem = nil
@@ -384,9 +392,11 @@ final class PlayerEngine: NSObject, ObservableObject {
         rebuildNextItem()
         if autoplay {
             try? AVAudioSession.sharedInstance().setActive(true)
+            intendPlaying = true
             player.play()
             isPlaying = true
         } else {
+            intendPlaying = false
             isPlaying = false
         }
         updateNowPlayingInfo()
@@ -438,6 +448,7 @@ final class PlayerEngine: NSObject, ObservableObject {
                 self.saveIndex()
             } else {
                 // End of the queue: stop on the last track, rewound.
+                self.intendPlaying = false
                 self.player.pause()
                 self.isPlaying = false
                 self.currentItem = nil
@@ -569,6 +580,7 @@ final class PlayerEngine: NSObject, ObservableObject {
             switch type {
             case .began:
                 self.wasPlayingBeforeInterruption = self.isPlaying
+                self.intendPlaying = false
                 self.isPlaying = false
                 self.updateNowPlayingInfo()
                 self.stateChanged.send()

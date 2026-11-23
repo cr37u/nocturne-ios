@@ -107,25 +107,47 @@ struct NowPlayingView: View {
             .scaleEffect(engine.isPlaying ? 1.0 : 0.9)
             .animation(.spring(response: 0.45, dampingFraction: 0.8), value: engine.isPlaying)
             .offset(x: artworkSwipe)
+            .rotationEffect(.degrees(Double(artworkSwipe / 45)), anchor: .bottom)
+            .opacity(1 - min(0.45, Double(abs(artworkSwipe) / (m.width * 1.4))))
             .frame(maxWidth: .infinity)
             .gesture(
-                // Swipe left / right on the artwork to skip (same as Android).
-                DragGesture(minimumDistance: 16)
+                // Swipe left / right on the artwork to skip: the cover follows the finger, slides out,
+                // and the next cover slides in from the other side (same as Android).
+                DragGesture(minimumDistance: 10)
                     .onChanged { v in
-                        if abs(v.translation.width) > abs(v.translation.height) { artworkSwipe = v.translation.width * 0.4 }
+                        guard abs(v.translation.width) > abs(v.translation.height) else { return }
+                        artworkSwipe = v.translation.width
                     }
                     .onEnded { v in
                         let dx = v.translation.width
-                        if abs(dx) > 80 && abs(dx) > abs(v.translation.height) {
-                            Haptics.tap()
-                            if dx < 0 { engine.next() } else { engine.previous() }
+                        let fling = v.predictedEndTranslation.width
+                        let horizontal = abs(dx) > abs(v.translation.height)
+                        guard horizontal, abs(dx) > 90 || abs(fling) > 260 else {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) { artworkSwipe = 0 }
+                            return
                         }
-                        withAnimation(.spring(response: 0.3)) { artworkSwipe = 0 }
+                        slideToNeighbour(direction: (dx != 0 ? dx : fling) < 0 ? -1 : 1)
                     }
             )
             .onTapGesture(count: 2) { library.toggleFavorite(track.id) }
             .accessibilityElement()
             .accessibilityLabel("\(track.title), \(track.artist)")
+    }
+
+    /// -1 = next (swipe left), +1 = previous (swipe right).
+    private func slideToNeighbour(direction: CGFloat) {
+        Haptics.tap()
+        let distance = m.width
+        withAnimation(.easeIn(duration: 0.15)) { artworkSwipe = direction * distance }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            if direction < 0 { engine.next() } else { engine.previous(force: true) }
+            var jump = Transaction()
+            jump.disablesAnimations = true
+            withTransaction(jump) { artworkSwipe = -direction * distance }
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) { artworkSwipe = 0 }
+            }
+        }
     }
 
     private func titleRow(_ track: Track) -> some View {
