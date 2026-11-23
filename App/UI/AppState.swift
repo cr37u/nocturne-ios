@@ -120,11 +120,24 @@ final class AppState: ObservableObject {
 
 @MainActor
 enum Haptics {
+    private static let light: UIImpactFeedbackGenerator = {
+        let g = UIImpactFeedbackGenerator(style: .light)
+        g.prepare()
+        return g
+    }()
+    private static let softGenerator: UIImpactFeedbackGenerator = {
+        let g = UIImpactFeedbackGenerator(style: .soft)
+        g.prepare()
+        return g
+    }()
+
     static func tap() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        light.impactOccurred()
+        light.prepare()
     }
 
     static func soft() {
-        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+        softGenerator.impactOccurred()
+        softGenerator.prepare()
     }
 }

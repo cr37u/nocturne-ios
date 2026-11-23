@@ -164,7 +164,19 @@ struct IconShape: Shape {
 
 /// Minimal SVG path-data parser (M L H V C S Q A Z, absolute and relative) — enough for Lucide.
 enum SVGPath {
-    static func parse(_ d: String) -> Path { build(tokenize(d)) }
+    private static var cache: [String: Path] = [:]
+    private static let lock = NSLock()
+
+    static func parse(_ d: String) -> Path {
+        lock.lock()
+        if let hit = cache[d] { lock.unlock(); return hit }
+        lock.unlock()
+        let path = build(tokenize(d))
+        lock.lock()
+        cache[d] = path
+        lock.unlock()
+        return path
+    }
 
     static func tokenize(_ d: String) -> [String] {
         var tokens: [String] = []

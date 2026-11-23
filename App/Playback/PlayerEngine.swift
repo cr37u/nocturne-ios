@@ -113,9 +113,10 @@ final class PlayerEngine: NSObject, ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] status in
                 guard let self, !self.demoMode else { return }
-                // Ignore the transient pause during an item switch while playback is intended.
-                if status == .paused && self.intendPlaying && self.currentItem != nil { return }
+                // Only accept status changes that agree with what was asked for: AVPlayer reports a
+                // transient "paused" while switching items, and late events would flip the icon back.
                 let playing = status != .paused
+                if playing != self.intendPlaying { return }
                 if playing != self.isPlaying {
                     self.isPlaying = playing
                     self.updateNowPlayingInfo()
