@@ -26,7 +26,8 @@ jobs:
   # ---------------------------------------------------------------------------
   ipa:
     name: Build unsigned IPA
-    runs-on: macos-latest
+    # Intel pool: the arm64 macOS runners are often at capacity and jobs get cancelled in the queue.
+    runs-on: macos-15-intel
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -168,6 +169,7 @@ jobs:
   # ---------------------------------------------------------------------------
   simulator:
     name: Tests & screenshots
+    needs: ipa
     runs-on: macos-latest
     timeout-minutes: 75
     steps:
