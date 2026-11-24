@@ -11,6 +11,7 @@ struct SettingsView: View {
     @Environment(\.metrics) private var m
     @Environment(\.dismiss) private var dismiss
     @State private var liveActivityOn = UserDefaults.standard.bool(forKey: "liveActivityEnabled")
+    @State private var parallel = DownloadManager.maxParallel
 
     var body: some View {
         ScrollView {
@@ -67,6 +68,45 @@ struct SettingsView: View {
                     }
                 }
 
+                section(L10n.t("downloads")) {
+                    HStack(spacing: 14) {
+                        IconView(icon: .download, size: 19)
+                            .foregroundStyle(parallel > DownloadManager.defaultParallel ? NC.amber : NC.text)
+                            .frame(width: 40, height: 40)
+                            .background(NC.elevated, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(L10n.t("parallel_downloads_title"))
+                                .font(.manrope(15, .bold, relativeTo: .body))
+                                .foregroundStyle(NC.text)
+                            Text(L10n.t("parallel_downloads_body"))
+                                .font(.manrope(13, relativeTo: .footnote))
+                                .foregroundStyle(NC.text2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        HStack(spacing: 4) {
+                            IconButton(icon: .minus, label: L10n.t("cd_parallel_less"), iconSize: 16, background: NC.elevated) {
+                                setParallel(parallel - 1)
+                            }
+                            .disabled(parallel <= DownloadManager.parallelRange.lowerBound)
+                            .opacity(parallel <= DownloadManager.parallelRange.lowerBound ? 0.4 : 1)
+                            Text(verbatim: "\(parallel)")
+                                .font(.manrope(17, .extraBold))
+                                .monospacedDigit()
+                                .foregroundStyle(NC.text)
+                                .frame(width: 26)
+                            IconButton(icon: .plus, label: L10n.t("cd_parallel_more"), iconSize: 16, background: NC.elevated) {
+                                setParallel(parallel + 1)
+                            }
+                            .disabled(parallel >= DownloadManager.parallelRange.upperBound)
+                            .opacity(parallel >= DownloadManager.parallelRange.upperBound ? 0.4 : 1)
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .background(NC.surface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                }
+
                 section(L10n.t("storage_title")) {
                     VStack(spacing: 10) {
                         SettingsRow(icon: .storage, title: L10n.t("storage_title"),
@@ -95,6 +135,13 @@ struct SettingsView: View {
         .background(NC.bg.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .accessibilityIdentifier("settings")
+    }
+
+    private func setParallel(_ value: Int) {
+        Haptics.soft()
+        DownloadManager.maxParallel = value
+        parallel = DownloadManager.maxParallel
+        DownloadManager.shared.parallelChanged()
     }
 
     private var appVersion: String {

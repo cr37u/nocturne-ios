@@ -12,7 +12,9 @@ final class ShareViewController: UIViewController {
         FontRegistry.registerIfNeeded()
         L10n.applyStored()
         view.backgroundColor = .clear
-        let host = UIHostingController(rootView: ShareView(model: model, open: { [weak self] in self?.openApp() },
+        let host = UIHostingController(rootView: ShareView(model: model,
+                                                           download: { [weak self] in self?.openApp(autoDownload: true) },
+                                                           open: { [weak self] in self?.openApp(autoDownload: false) },
                                                            close: { [weak self] in self?.finish() }))
         host.view.backgroundColor = .clear
         addChild(host)
@@ -55,12 +57,14 @@ final class ShareViewController: UIViewController {
         }
     }
 
-    private func openApp() {
+    /// `autoDownload`: Nocturne starts the download immediately instead of showing "Adaugă muzică".
+    private func openApp(autoDownload: Bool) {
         guard let link = model.link else { finish(); return }
         var comps = URLComponents()
         comps.scheme = "nocturne"
         comps.host = "add"
         comps.queryItems = [URLQueryItem(name: "url", value: link)]
+        if autoDownload { comps.queryItems?.append(URLQueryItem(name: "auto", value: "1")) }
         if let url = comps.url { openURL(url) }
         // The pending link in the App Group would add it twice: the URL handles it.
         _ = AppGroup.popPendingLinks()
@@ -113,6 +117,7 @@ final class ShareModel: ObservableObject {
 
 private struct ShareView: View {
     @ObservedObject var model: ShareModel
+    let download: () -> Void
     let open: () -> Void
     let close: () -> Void
 
@@ -149,22 +154,21 @@ private struct ShareView: View {
                         .font(.manrope(18, .extraBold)).foregroundStyle(NC.text)
                     Text(model.link ?? "")
                         .font(.manrope(13)).foregroundStyle(NC.text2).lineLimit(2)
-                    Text(L10n.t(AppGroup.isAvailable ? "share_body" : "share_open"))
-                        .font(.manrope(14)).foregroundStyle(NC.onGradient)
-                    HStack(spacing: 10) {
-                        if AppGroup.isAvailable {
-                            Button(action: close) {
-                                Text(L10n.t("share_done")).font(.manrope(15, .bold)).foregroundStyle(NC.text)
-                                    .frame(maxWidth: .infinity, minHeight: 48)
-                                    .background(NC.elevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            }
-                        }
-                        Button(action: open) {
-                            Text(L10n.t("share_open")).font(.manrope(15, .bold)).foregroundStyle(NC.text)
+                    Button(action: download) {
+                        HStack(spacing: 8) {
+                            IconView(icon: .download, size: 18)
+                            Text(L10n.t("share_download_label")).font(.manrope(15, .bold))
                                 .lineLimit(1).minimumScaleFactor(0.8)
-                                .frame(maxWidth: .infinity, minHeight: 48)
-                                .background(NC.primary, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                         }
+                        .foregroundStyle(NC.text)
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .background(NC.primary, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                    Button(action: open) {
+                        Text(L10n.t("share_open")).font(.manrope(15, .bold)).foregroundStyle(NC.text)
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .background(NC.elevated, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
                 }
             }

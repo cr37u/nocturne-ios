@@ -29,7 +29,18 @@ struct DownloadStats {
 final class DownloadManager: ObservableObject {
     static let shared = DownloadManager()
 
-    static let maxParallel = 4
+    static let parallelRange = 1...10
+    static let defaultParallel = 4
+    private static let parallelKey = "parallelDownloads"
+
+    /// How many songs download at the same time (Setări → Descărcări). Applies immediately.
+    static var maxParallel: Int {
+        get {
+            let v = UserDefaults.standard.integer(forKey: parallelKey)
+            return v == 0 ? defaultParallel : min(parallelRange.upperBound, max(parallelRange.lowerBound, v))
+        }
+        set { UserDefaults.standard.set(min(parallelRange.upperBound, max(parallelRange.lowerBound, newValue)), forKey: parallelKey) }
+    }
     static let maxAttempts = 3
     static let chunkSize: Int64 = 10 * 1024 * 1024
     static let sessionId = (AppGroup.appBundleIdentifier ?? "com.nocturne.player") + ".downloads"
@@ -63,7 +74,7 @@ final class DownloadManager: ObservableObject {
         config.sessionSendsLaunchEvents = true
         config.isDiscretionary = false
         config.allowsCellularAccess = true
-        config.httpMaximumConnectionsPerHost = Self.maxParallel
+        config.httpMaximumConnectionsPerHost = Self.parallelRange.upperBound
         config.timeoutIntervalForRequest = 60
         return URLSession(configuration: config, delegate: delegate, delegateQueue: .main)
     }()
@@ -164,6 +175,24 @@ final class DownloadManager: ObservableObject {
         }
         pump()
     }
+
+    /// "Șterge tot": cancels running / queued / failed downloads and empties the list.
+    /// Songs already downloaded stay in the library.
+    func clearAll() {
+        session.getAllTasks { tasks in tasks.forEach { $0.cancel() } }
+        jobs.removeAll()
+        starting.removeAll()
+        progress.removeAll()
+        if let parts = try? FileManager.default.contentsOfDirectory(at: Storage.partsDir, includingPropertiesForKeys: nil) {
+            parts.forEach { try? FileManager.default.removeItem(at: $0) }
+        }
+        try? library.db.writer.write { db in
+            try db.execute(sql: "DELETE FROM downloads")
+        }
+    }
+
+    /// Setări changed the limit: start more downloads right away if allowed.
+    func parallelChanged() { pump() }
 
     func clearFinished() {
         try? library.db.writer.write { db in

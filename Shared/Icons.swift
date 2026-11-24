@@ -13,7 +13,7 @@ struct IconPart {
 enum Icon: String, CaseIterable {
     case moon, moonWave, search, sliders, link, music, more, moreHorizontal, pause, play, next, previous,
          chevronDown, chevronLeft, chevronRight, listPlus, heart, shuffle, `repeat`, volume, airplay, queue,
-         plus, xmark, check, trash, pencil, download, lyrics, retry, sort, globe, folder, info, layers,
+         plus, minus, xmark, check, trash, pencil, download, lyrics, retry, sort, globe, folder, info, layers,
          activity, storage, clipboard, youtube
 
     var parts: [IconPart] {
@@ -75,6 +75,8 @@ enum Icon: String, CaseIterable {
             return [.init(kind: .path("M3 6h13M3 12h13M3 18h9")), .init(kind: .path("M17 15v6l4-3z"), filled: true)]
         case .plus:
             return [.init(kind: .path("M12 5v14M5 12h14"))]
+        case .minus:
+            return [.init(kind: .path("M5 12h14"))]
         case .xmark:
             return [.init(kind: .path("M18 6 6 18M6 6l12 12"))]
         case .check:

@@ -102,6 +102,32 @@ final class AppState: ObservableObject {
         path.append(.add(link))
     }
 
+    /// "Descarcă în Nocturne" from Share: resolve the link and queue it right away, staying in the
+    /// library (the Downloads tab shows the progress).
+    func quickDownload(_ raw: String) {
+        guard let url = YouTubeLinks.extractURL(from: raw), let parsed = YouTubeLinks.parse(url) else {
+            showToast(L10n.t("error_invalid_link"))
+            return
+        }
+        nowPlayingOpen = false
+        path.removeAll()
+        tab = .downloads
+        showToast(L10n.t("quick_download_started"))
+        Task { @MainActor in
+            do {
+                let resolved = try await YouTubeCatalog.shared.resolve(parsed)
+                let added = DownloadManager.shared.enqueue(resolved)
+                if added == 0 {
+                    self.showToast(L10n.t(resolved.isPlaylist ? "playlist_imported" : "all_in_library"))
+                } else {
+                    self.showToast(L10n.p("added_to_downloads", added))
+                }
+            } catch {
+                self.showToast(ErrorKind.from(error).message)
+            }
+        }
+    }
+
     /// nocturne://add?url=… (Share Extension, widget "Adaugă link") and nocturne://player.
     func handle(url: URL) {
         guard url.scheme == "nocturne" else { return }
@@ -109,7 +135,11 @@ final class AppState: ObservableObject {
         switch url.host {
         case "add":
             let link = comps?.queryItems?.first(where: { $0.name == "url" })?.value
-            openAdd(link)
+            if comps?.queryItems?.contains(where: { $0.name == "auto" && $0.value == "1" }) == true, let link {
+                quickDownload(link)
+            } else {
+                openAdd(link)
+            }
         case "player":
             if PlayerEngine.shared.hasTrack { nowPlayingOpen = true }
         default:

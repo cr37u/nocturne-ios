@@ -600,6 +600,52 @@
         }
       }
     },
+    "cd_parallel_less": {
+      "extractionState": "manual",
+      "localizations": {
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mai puține"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fewer"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Меньше"
+          }
+        }
+      }
+    },
+    "cd_parallel_more": {
+      "extractionState": "manual",
+      "localizations": {
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mai multe"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Больше"
+          }
+        }
+      }
+    },
     "cd_pause": {
       "extractionState": "manual",
       "localizations": {
@@ -872,6 +918,75 @@
           "stringUnit": {
             "state": "translated",
             "value": "Выберите плейлист"
+          }
+        }
+      }
+    },
+    "clear_all": {
+      "extractionState": "manual",
+      "localizations": {
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Șterge tot"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear all"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Очистить всё"
+          }
+        }
+      }
+    },
+    "clear_all_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descărcările în curs, în așteptare și eșuate se anulează. Melodiile deja descărcate rămân în bibliotecă."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running, queued and failed downloads are cancelled. Songs already downloaded stay in your library."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Текущие, ожидающие и неудачные загрузки отменяются. Уже скачанные песни остаются в библиотеке."
+          }
+        }
+      }
+    },
+    "clear_all_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Golești lista de descărcări?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear the download list?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Очистить список загрузок?"
           }
         }
       }
@@ -2900,6 +3015,52 @@
         }
       }
     },
+    "parallel_downloads_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Câte melodii se descarcă deodată (1–10). Mai multe merg mai repede, dar YouTube poate bloca temporar."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How many songs download at once (1–10). More is faster, but YouTube may block you for a while."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сколько песен скачивается одновременно (1–10). Больше — быстрее, но YouTube может временно заблокировать."
+          }
+        }
+      }
+    },
+    "parallel_downloads_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descărcări în paralel"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parallel downloads"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Параллельные загрузки"
+          }
+        }
+      }
+    },
     "paste": {
       "extractionState": "manual",
       "localizations": {
@@ -3241,6 +3402,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Очередь пуста"
+          }
+        }
+      }
+    },
+    "quick_download_started": {
+      "extractionState": "manual",
+      "localizations": {
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se descarcă în Nocturne…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading in Nocturne…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скачивается в Nocturne…"
           }
         }
       }
@@ -3655,6 +3839,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Готово"
+          }
+        }
+      }
+    },
+    "share_download_label": {
+      "extractionState": "manual",
+      "localizations": {
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descarcă în Nocturne"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download in Nocturne"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скачать в Nocturne"
           }
         }
       }

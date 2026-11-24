@@ -264,6 +264,7 @@ struct DownloadsSection: View {
     @EnvironmentObject private var lang: LanguageManager
     @Environment(\.metrics) private var m
     var showEmpty = true
+    @State private var confirmClearAll = false
 
     var body: some View {
         let all = library.downloads
@@ -312,6 +313,22 @@ struct DownloadsSection: View {
                         }
                         .buttonStyle(PressScaleStyle())
                         .frame(minHeight: 44)
+                    }
+                    Button { confirmClearAll = true } label: {
+                        IconView(icon: .trash, size: 17)
+                            .foregroundStyle(NC.error)
+                            .frame(width: 36, height: 36)
+                            .background(NC.surface, in: Circle())
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(PressScaleStyle())
+                    .accessibilityLabel(L10n.t("clear_all"))
+                    .confirmationDialog(L10n.t("clear_all_title"), isPresented: $confirmClearAll, titleVisibility: .visible) {
+                        Button(L10n.t("clear_all"), role: .destructive) { downloads.clearAll() }
+                        Button(L10n.t("cancel"), role: .cancel) {}
+                    } message: {
+                        Text(L10n.t("clear_all_body"))
                     }
                 }
                 if stats.hasPending {
