@@ -169,6 +169,8 @@ struct PlaylistDetailView: View {
     @State private var newName = ""
     @State private var confirmDelete = false
     @State private var editing = false
+    /// The big header scrolled away → show the slim top bar.
+    @State private var compact = false
 
     private var isFavorites: Bool { playlistId == nil }
     private var summary: PlaylistSummary? { library.playlists.first { $0.playlist.id == playlistId } }
@@ -179,6 +181,13 @@ struct PlaylistDetailView: View {
     var body: some View {
         let list = tracks
         List {
+            // The big header is a normal row (section headers stay pinned): it scrolls away.
+            header(list)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .onAppear { if compact { withAnimation(.easeOut(duration: 0.2)) { compact = false } } }
+                .onDisappear { withAnimation(.easeOut(duration: 0.2)) { compact = true } }
             Section {
                 ForEach(Array(list.enumerated()), id: \.element.id) { i, track in
                     TrackRow(
@@ -208,10 +217,6 @@ struct PlaylistDetailView: View {
                     ids.move(fromOffsets: from, toOffset: to)
                     if let pid = playlistId { library.reorder(playlist: pid, ids: ids) }
                 })
-            } header: {
-                header(list)
-                    .listRowInsets(EdgeInsets())
-                    .textCase(nil)
             }
             if list.isEmpty {
                 Text(L10n.t("playlist_empty"))
@@ -229,6 +234,9 @@ struct PlaylistDetailView: View {
         .environment(\.editMode, .constant(editing ? .active : .inactive))
         .background(NC.bg.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        .overlay(alignment: .top) {
+            if compact { compactBar(list).transition(.move(edge: .top).combined(with: .opacity)) }
+        }
         .alert(L10n.t("rename_playlist_title"), isPresented: $renaming) {
             TextField(L10n.t("playlist_name_hint"), text: $newName)
             Button(L10n.t("cancel"), role: .cancel) {}
@@ -251,6 +259,28 @@ struct PlaylistDetailView: View {
         } message: {
             Text(L10n.t("delete_playlist_choice_body"))
         }
+    }
+
+    /// Slim bar shown once the header has scrolled away: back · name · play.
+    private func compactBar(_ list: [Track]) -> some View {
+        HStack(spacing: 12) {
+            IconButton(icon: .chevronLeft, label: L10n.t("cd_back")) { dismiss() }
+            Text(name)
+                .font(.manrope(17, .extraBold, relativeTo: .headline))
+                .foregroundStyle(NC.text)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if !list.isEmpty {
+                PlayPauseButton(isPlaying: false, size: 40, iconSize: 15) {
+                    engine.play(list, context: context)
+                }
+                .accessibilityLabel(L10n.t("play_all"))
+            }
+        }
+        .padding(.horizontal, m.hPad)
+        .padding(.vertical, 8)
+        .background(NC.bg.opacity(0.96).ignoresSafeArea(edges: .top))
+        .overlay(alignment: .bottom) { Rectangle().fill(NC.surface).frame(height: 1) }
     }
 
     private func header(_ list: [Track]) -> some View {
