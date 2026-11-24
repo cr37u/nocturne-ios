@@ -30,7 +30,13 @@ struct LibraryView: View {
                 }
                 HStack(spacing: 8) {
                     PillTabs(selection: $app.tab)
-                    if app.tab == .songs && !library.tracks.isEmpty { sortMenu }
+                    if !library.tracks.isEmpty {
+                        // Always in the layout (only hidden off "Melodii") so the pills don't jump.
+                        sortMenu
+                            .opacity(app.tab == .songs ? 1 : 0)
+                            .allowsHitTesting(app.tab == .songs)
+                            .animation(.easeOut(duration: 0.2), value: app.tab)
+                    }
                 }
                 .padding(.top, 14)
             }
@@ -44,7 +50,6 @@ struct LibraryView: View {
                 downloads.tag(LibraryTab.downloads)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .animation(.easeOut(duration: 0.22), value: app.tab)
             .padding(.top, 10)
         }
         .background(NC.bg.ignoresSafeArea())

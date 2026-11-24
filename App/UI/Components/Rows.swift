@@ -140,6 +140,10 @@ struct TrackMenuItems: View {
 struct PillTabs: View {
     @Binding var selection: LibraryTab
     @EnvironmentObject private var lang: LanguageManager
+    @Namespace private var pill
+
+    /// One spring for taps and page swipes, so the white pill glides between tabs.
+    static let motion = Animation.spring(response: 0.38, dampingFraction: 0.86)
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -147,16 +151,25 @@ struct PillTabs: View {
                 ForEach(LibraryTab.allCases, id: \.self) { tab in
                     let active = tab == selection
                     Button {
+                        guard tab != selection else { return }
                         Haptics.soft()
-                        withAnimation(.easeOut(duration: 0.18)) { selection = tab }
+                        withAnimation(Self.motion) { selection = tab }
                     } label: {
                         Text(L10n.t(tab.key))
-                            .font(.manrope(13, active ? .bold : .semibold, relativeTo: .subheadline))
+                            .font(.manrope(13, .bold, relativeTo: .subheadline))
                             .foregroundStyle(active ? NC.bg : NC.text2)
                             .lineLimit(1)
                             .padding(.horizontal, 16)
                             .frame(minHeight: 38)
-                            .background(active ? NC.text : NC.surface, in: Capsule())
+                            .background {
+                                ZStack {
+                                    Capsule().fill(NC.surface)
+                                    if active {
+                                        Capsule().fill(NC.text).matchedGeometryEffect(id: "activePill", in: pill)
+                                    }
+                                }
+                            }
+                            .animation(Self.motion, value: selection)
                     }
                     .buttonStyle(PressScaleStyle(scale: 0.97))
                     .accessibilityAddTraits(active ? [.isSelected, .isButton] : .isButton)
