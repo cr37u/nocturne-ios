@@ -90,7 +90,7 @@ struct SettingsView: View {
             }
             .padding(.horizontal, m.hPad)
             .padding(.top, m.topPad)
-            .padding(.bottom, 30)
+            MiniPlayerSpacer()
         }
         .background(NC.bg.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)

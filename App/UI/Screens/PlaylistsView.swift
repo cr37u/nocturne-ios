@@ -65,7 +65,7 @@ struct PlaylistsGrid: View {
                 }
             }
             .padding(.horizontal, m.hPad)
-            .padding(.bottom, 24)
+            MiniPlayerSpacer()
         }
         .alert(L10n.t("new_playlist_title"), isPresented: $creating) {
             TextField(L10n.t("playlist_name_hint"), text: $newName)
@@ -222,6 +222,7 @@ struct PlaylistDetailView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             }
+            Color.clear.frame(height: 0).miniPlayerSpacerRow()
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)

@@ -129,7 +129,7 @@ struct RootView: View {
                         }
                 }
                 .tint(NC.brightStart)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
+                .overlay(alignment: .bottom) {
                     miniPlayerInset(metrics)
                 }
 

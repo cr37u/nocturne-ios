@@ -37,13 +37,14 @@ struct LibraryView: View {
             .padding(.horizontal, m.hPad)
             .padding(.top, m.topPad)
 
-            Group {
-                switch app.tab {
-                case .songs: songs
-                case .playlists: PlaylistsGrid()
-                case .downloads: downloads
-                }
+            // Swipe left / right between the tabs; the pills follow the page.
+            TabView(selection: $app.tab) {
+                songs.tag(LibraryTab.songs)
+                PlaylistsGrid().tag(LibraryTab.playlists)
+                downloads.tag(LibraryTab.downloads)
             }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .animation(.easeOut(duration: 0.22), value: app.tab)
             .padding(.top, 10)
         }
         .background(NC.bg.ignoresSafeArea())
@@ -226,6 +227,7 @@ struct LibraryView: View {
                         .tint(NC.amber)
                     }
                 }
+                Color.clear.frame(height: 0).miniPlayerSpacerRow()
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
@@ -239,7 +241,7 @@ struct LibraryView: View {
         ScrollView {
             DownloadsSection()
                 .padding(.horizontal, m.hPad)
-                .padding(.bottom, 20)
+            MiniPlayerSpacer()
         }
     }
 

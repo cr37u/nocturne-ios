@@ -109,10 +109,10 @@ struct AddMusicView: View {
                 }
                 phaseView
                 DownloadsSection(showEmpty: false)
+                MiniPlayerSpacer()
             }
             .padding(.horizontal, m.hPad)
             .padding(.top, m.topPad)
-            .padding(.bottom, 24)
         }
         .scrollDismissesKeyboard(.immediately)
         .background(NC.bg.ignoresSafeArea())

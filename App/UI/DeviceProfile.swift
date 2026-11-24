@@ -95,6 +95,8 @@ struct Metrics: Equatable {
     /// Distance from the bottom of the screen: 12 pt (SE), 40 pt (Pro Max / Face ID: safe area + 6).
     var miniBottomFromScreen: CGFloat { max(12, safeBottom + 6) }
     var fadeHeight: CGFloat { profile == .large ? 200 : 130 }
+    /// Space the floating mini-player covers above the safe area (8 top + 75 player + bottom gap + 14).
+    var miniPlayerClearance: CGFloat { 8 + 75 + max(0, miniBottomFromScreen - safeBottom) + 14 }
 
     // MARK: Now Playing (boards 02 / 03)
 
