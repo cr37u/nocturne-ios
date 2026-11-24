@@ -13,20 +13,29 @@ struct LibraryView: View {
     @State private var query = ""
     @State private var link = ""
     @State private var sort: TrackSort = .recent
+    /// Header (logo, search, settings, link bar) hides while scrolling down, returns on scroll up.
+    @State private var headerHidden = false
+    private let headerMotion = Animation.spring(response: 0.34, dampingFraction: 0.9)
     @FocusState private var searchFocused: Bool
     @FocusState private var linkFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: 0) {
-                header
-                if searching {
-                    searchBar.padding(.top, 16)
-                } else {
-                    linkBar.padding(.top, 16)
-                }
-                if let clip = app.clipboardLink, !searching {
-                    clipboardBanner(clip).padding(.top, 10)
+                if !headerHidden || searching {
+                    VStack(spacing: 0) {
+                        header
+                        if searching {
+                            searchBar.padding(.top, 16)
+                        } else {
+                            linkBar.padding(.top, 16)
+                        }
+                        if let clip = app.clipboardLink, !searching {
+                            clipboardBanner(clip).padding(.top, 10)
+                        }
+                    }
+                    .padding(.bottom, 14)
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
                 HStack(spacing: 8) {
                     PillTabs(selection: $app.tab)
@@ -38,10 +47,10 @@ struct LibraryView: View {
                             .animation(.easeOut(duration: 0.2), value: app.tab)
                     }
                 }
-                .padding(.top, 14)
             }
             .padding(.horizontal, m.hPad)
             .padding(.top, m.topPad)
+            .clipped()
 
             // Swipe left / right between the tabs; the pills follow the page.
             TabView(selection: $app.tab) {
@@ -51,6 +60,22 @@ struct LibraryView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .padding(.top, 10)
+            // Vertical drags: up hides the header, down brings it back (horizontal = tab swipe).
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 12)
+                    .onChanged { v in
+                        let dy = v.translation.height
+                        guard abs(dy) > abs(v.translation.width) * 1.4 else { return }
+                        if dy < -28 && !headerHidden {
+                            withAnimation(headerMotion) { headerHidden = true }
+                        } else if dy > 28 && headerHidden {
+                            withAnimation(headerMotion) { headerHidden = false }
+                        }
+                    }
+            )
+            .onChange(of: app.tab) { _ in
+                if headerHidden { withAnimation(headerMotion) { headerHidden = false } }
+            }
         }
         .background(NC.bg.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
